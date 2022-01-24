@@ -1,26 +1,26 @@
 (define-minor-mode centering-mode
   "Toggle Centering Mode."
-  nil ; Initial value, nil for disabled
-  "Centering"
-  nil
-
-  (if centering-mode
-    (make-local-variable 'my-comment-start)
-    (make-local-variable 'my-comment-end)
-    (make-local-variable 'my-comment-width)
-    (setq my-comment-start "|")
-    (setq my-comment-end "|")
-    (setq my-comment-width 80)
-    )
+  :init-value nil ; Initial value, nil for disabled
+  :lighter "Block-comment"
+  :keymap nil
   )
 
-(define-key centering-mode-map (kbd "C-M-k") 'insert-header)
+(defun init-local-variables ()
+  (message "setting local variables")
+  (set (make-local-variable 'my-comment-start) "|")
+  (set (make-local-variable 'my-comment-end) "|" )
+  (set (make-local-variable 'my-comment-width) 80)
+  )
+
+(add-hook centering-mode-hook 'init-local-variables)
+
+(local-set-key (kbd "C-M-k") 'insert-header)
 
 ;; press C-g to abort centering mode
-(define-key centering-mode-map (kbd "C-g") 'centering-abort)
+(local-set-key (kbd "C-g") 'centering-abort)
 
 ;; press Ret to abort centering mode and add a new line (after the centered text)
-(define-key centering-mode-map (kbd "RET") 'centering-abort-newline)
+(local-set-key (kbd "RET") 'centering-abort-newline)
 
 (defun centering-abort ()
   (interactive)
@@ -84,11 +84,11 @@
   (interactive)
   (beginning-of-line)
   (open-line 1)
-  (insert my-comment-start)
-  (insert (make-string my-comment-width ? ))
+  (insert 'my-comment-start)
+  (insert (make-string 'my-comment-width ? ))
   (save-excursion
-    (insert (make-string my-comment-width ? ))
-    (insert my-comment-end)
-    (insert-header-start)))
+    (insert (make-string 'my-comment-width ? ))
+    (insert 'my-comment-end)
+    (insert 'header-start)))
 
 (provide 'centering-mode)
