@@ -4,20 +4,24 @@
   :lighter "Block-comment"
   :keymap nil
 
-  ((message "in the place")
-   (if (and centering-mode (boundp 'my-comment-start))
-      (
-       (message "Setting default variables")
-       (set (make-local-variable 'my-comment-start) "|")
-       (set (make-local-variable 'my-comment-padding) " " )
-       (set (make-local-variable 'my-comment-end) "|" )
-       (set (make-local-variable 'my-comment-width) 80)
+  (if centering-mode
+      (progn
+       (message "Activating centering mode")
+       (unless (boundp 'my-comment-start)
+         (progn
+          (message "Setting default variables")
+          (set (make-local-variable 'my-comment-start) "|")
+          (set (make-local-variable 'my-comment-padding) " " )
+          (set (make-local-variable 'my-comment-end) "|" )
+          (set (make-local-variable 'my-comment-width) 80)
+          )
+         )
        )
     )
-   )
   )
 
 (defun init-local-variables (start end padding len)
+  (interactive)
   (message "setting local variables")
   (set (make-local-variable 'my-comment-start) start)
   (set (make-local-variable 'my-comment-padding) padding)
@@ -25,13 +29,13 @@
   (set (make-local-variable 'my-comment-width) len)
   )
 
-(local-set-key (kbd "C-M-k") 'insert-header)
+(define-key centering-mode-map (kbd "C-M-k") 'insert-header)
 
 ;; press C-g to abort centering mode
-(local-set-key (kbd "C-g") 'centering-abort)
+(define-key centering-mode-map (kbd "C-g") 'centering-abort)
 
 ;; press Ret to abort centering mode and add a new line (after the centered text)
-(local-set-key (kbd "RET") 'centering-abort-newline)
+(define-key centering-mode-map (kbd "RET") 'centering-abort-newline)
 
 (defun centering-abort ()
   (interactive)
@@ -96,10 +100,10 @@
   (beginning-of-line)
   (open-line 1)
   (insert my-comment-start)
-  (insert (make-string 'my-comment-width ? ))
+  (insert (make-string my-comment-width ? ))
   (save-excursion
-    (insert (make-string 'my-comment-width ? ))
-    (insert 'my-comment-end)
-    (insert 'header-start)))
+    (insert (make-string my-comment-width ? ))
+    (insert my-comment-end)
+    (insert header-start)))
 
 (provide 'centering-mode)
