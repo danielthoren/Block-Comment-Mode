@@ -94,11 +94,35 @@
   (interactive)
   (beginning-of-line)
   (open-line 1)
+  (message "Padding is: %s" my-comment-padding)
+  (let* (
+         (padding-length (- my-comment-width
+                            (+ (string-width my-comment-start) (string-width my-comment-end))
+                            )
+                         )
+         (padding (make-string padding-length (string-to-char my-comment-padding)))
+         (half-comment-width (/ padding-length 2))
+         )
+  (message "Padding length: %d" padding-length)
   (insert my-comment-start)
-  (insert (make-string my-comment-width ? ))
+  (insert padding)
+  (insert my-comment-end)
+  (insert "\n")
+
+  (insert my-comment-start)
+  (insert (make-string half-comment-width ? ))
   (save-excursion
-    (insert (make-string my-comment-width ? ))
+    (insert (make-string half-comment-width ? ))
     (insert my-comment-end)
-    (insert-header-start)))
+    (insert "\n")
+
+    (insert my-comment-start)
+    (insert padding)
+    (insert my-comment-end)
+
+    (insert-header-start)
+  )
+  )
+)
 
 (provide 'block-comment-mode)
