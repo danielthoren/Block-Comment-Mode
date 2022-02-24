@@ -145,7 +145,7 @@
     (setq block-comment-centering--order (- 1 block-comment-centering--order))
 
     (if (< step 0)
-	(block-comment-centering--removed-chars (- 0 left) (- 0 right))
+	(block-comment-centering--removed-chars (- 0 right) (- 0 left))
       (block-comment-centering--inserted-chars left right))
     )
   )
