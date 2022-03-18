@@ -254,8 +254,8 @@
                           (string-width block-comment-prefix)
                           (string-width block-comment-postfix)))
         (line-width 0)
-        (read-prefix)
-        (read-postfix)
+        (read-prefix-pos nil)
+        (read-postfix-pos nil)
         )
 
 
@@ -266,18 +266,20 @@
 
       (beginning-of-line)
       (push-mark)
-      (right-char (string-width block-comment-prefix))
-      (setq read-prefix (buffer-substring (mark) (point)))
+      (setq read-prefix-pos
+            (search-forward block-comment-prefix (end-of-line))
+            )
 
       (end-of-line)
       (push-mark)
-      (left-char (string-width block-comment-postfix))
-      (setq read-postfix (buffer-substring (mark) (point)))
+      (setq read-postfix-pos
+            (search-backward block-comment-prefix (end-of-line))
+            )
 
       )
 
-    (if (and (string= read-prefix block-comment-prefix)
-             (string= read-postfix block-comment-postfix)
+    (if (and read-prefix-pos
+             read-postfix-pos
              (> line-width (- block-comment-width 10)))
         (message "Resume block comment") ;; TODO: Fix resume block comment
       (block-comment-insert)
