@@ -70,6 +70,7 @@
   )
 
 (defun block-comment-centering--cursor-moved ()
+  """Abort block-comment-mode if cursor is outside of block comment"""
   (let* ((start (marker-position block-comment-centering--start-pos))
 	 (end (marker-position block-comment-centering--end-pos))
 	 (cur (point)))
@@ -242,4 +243,44 @@
     )
 
   (block-comment-insert-centering)
+  )
+
+(defun block-comment-insert-or-resume ()
+  """ Checks if point is inside block comment or not. If it is, resume previous block comment, else start new block comment """
+  (interactive)
+
+  (let (
+        (pre-post-length (+
+                          (string-width block-comment-prefix)
+                          (string-width block-comment-postfix)))
+        (line-width 0)
+        (read-prefix)
+        (read-postfix)
+        )
+
+
+    (save-excursion
+
+      (end-of-line)
+      (setq line-width (current-column))
+
+      (beginning-of-line)
+      (push-mark)
+      (right-char (string-width block-comment-prefix))
+      (setq read-prefix (buffer-substring (mark) (point)))
+
+      (end-of-line)
+      (push-mark)
+      (left-char (string-width block-comment-postfix))
+      (setq read-postfix (buffer-substring (mark) (point)))
+
+      )
+
+    (if (and (string= read-prefix block-comment-prefix)
+             (string= read-postfix block-comment-postfix)
+             (> line-width (- block-comment-width 10)))
+        (message "Resume block comment") ;; TODO: Fix resume block comment
+      (block-comment-insert)
+      )
+    )
   )
