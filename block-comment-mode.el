@@ -246,17 +246,22 @@
   )
 
 (defun block-comment--resume ()
+  """ Resumes block comment mode using existing block comment """
   (interactive)
 
   ;; init the centering mode without activating it
   (block-comment-centering--init)
 
-  ;; store the beginning of the block comment
-  (beginning-of-line)
-  (setq block-comment-centering--start-pos (point-marker)) ;;TODO: Maybe take as arguments
-  (end-of-line)
-  (setq block-comment-centering--end-pos (point-marker))
+  ;; ;; store the beginning of the block comment
+  ;; (beginning-of-line)
+  ;; (forward-char (string-width block-comment-prefix))
+  ;; (setq block-comment-centering--start-pos (point-marker)) ;;TODO: Maybe take as arguments
 
+  ;; (end-of-line)
+  ;; (backward-char (string-width block-comment-postfix))
+  ;; (setq block-comment-centering--end-pos (point-marker))
+
+  (end-of-line)
   ;; Find start position in block comment
   (backward-char (string-width block-comment-postfix))
 
@@ -267,20 +272,21 @@
 
   )
 
-(defun block-comment-insert-or-resume ()
-  """ Checks if point is inside block comment or not. If it is, resume previous block comment, else start new block comment """
-  (interactive)
 
+(defun block-comment--is-body ()
+  """ checks if the current row follows the format of a block comment body """
+  (interactive)
   (let (
         (pre-post-length (+
                           (string-width block-comment-prefix)
                           (string-width block-comment-postfix)))
         (line-width 0)
-        (read-prefix-pos nil)
-        (read-postfix-pos nil)
+        (read-prefix-pos nil)   ;; Position of current row:s prefix
+        (read-postfix-pos nil)  ;; Position of current row:s postfix
         )
 
 
+    ;; Check if the current row is part of a block comment
     (save-excursion
 
       (end-of-line)
@@ -300,10 +306,108 @@
 
       )
 
-    (if (and read-prefix-pos
-             read-postfix-pos
-             (> line-width (- block-comment-width 10)))
-        (block-comment--resume)
+    ;; (setq line-width (- read-prefix-pos read-postfix-pos)) TODO
+
+    ;; Return value, t if in block comment row, else nil
+    (and read-prefix-pos
+         read-postfix-pos
+         (> line-width (- block-comment-width 20)))
+
+    )
+  )
+
+(defun block-comment--is-edge ()
+  """ Checks if the current row is the edge of the block comment """
+  (interactive)
+
+  (let (
+        (pre-post-length (+
+                          (string-width block-comment-prefix)
+                          (string-width block-comment-postfix)))
+        (line-width 0)
+        (read-prefix-postfix-row nil)   ;; Position of block-comment:s prefix row
+
+        (postfix-prefix-row-regex nil) ;; Regex used to find postfix/prefix row
+        )
+
+    ;; Create regex string
+    (setq postfix-prefix-row-regex
+          (concat
+           (regexp-quote block-comment-prefix)
+           (concat (regexp-quote block-comment-padding) "+")
+           (regexp-quote block-comment-postfix)
+           )
+          )
+
+    (save-excursion
+
+      (beginning-of-line)
+
+      (setq read-prefix-postfix-row
+            (re-search-forward postfix-prefix-row-regex (end-of-line) t))
+
+      )
+
+    (and read-prefix-postfix-row
+         (> line-width (- block-comment-width 20)))
+
+    )
+  )
+
+(defun block-comment-insert-or-resume ()
+  """ Checks if point is inside block comment or not. If it is, resume previous block comment, else start new block comment """
+  (interactive)
+
+  (let (
+        (block-comment-prefix nil)   ;; Set to t if prefix looks like block comment
+        (block-comment-postfix nil)  ;; Set to t if postfix looks like block comment
+        )
+
+    (save-excursion
+
+      ;; Move upward until a row that does not look like the body of a block comment is encountered
+      (while (block-comment--is-body)
+        (previous-line)
+        )
+
+      ;; If start of block comment detected, set start flag to t
+      (if (block-comment--is-edge)
+          (setq block-comment-prefix t)
+        )
+
+      ;; Save start position
+      (next-line)
+      (beginning-of-line)
+      (forward-char (string-width block-comment-prefix))
+      (setq block-comment-centering--start-pos (point-marker))
+
+      )
+
+    (save-excursion
+
+            ;; Move downward until a row that does not look like the body of a block comment is encountered
+      (while (block-comment--is-row)
+        (next-line)
+        )
+
+      ;; If start of block comment detected, set start flag to t
+      (if (block-comment--is-edge)
+          (setq block-comment-postfix t)
+        )
+
+      ;; Save start position
+      (previous-line
+      (end-of-line)
+      (backward-char (string-width block-comment-postfix))
+      (setq block-comment-centering--end-pos (point-marker))
+
+      )
+
+
+    ;; Check if in block comment
+      (if (and block-comment-prefix
+               block-comment-postfix))
+        (message "resume") ;;(block-comment--resume)
         (block-comment-insert)
       )
     )
