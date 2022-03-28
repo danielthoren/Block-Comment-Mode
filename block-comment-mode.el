@@ -245,6 +245,28 @@
   (block-comment-insert-centering)
   )
 
+(defun block-comment--resume ()
+  (interactive)
+
+  ;; init the centering mode without activating it
+  (block-comment-centering--init)
+
+  ;; store the beginning of the block comment
+  (beginning-of-line)
+  (setq block-comment-centering--start-pos (point-marker)) ;;TODO: Maybe take as arguments
+  (end-of-line)
+  (setq block-comment-centering--end-pos (point-marker))
+
+  ;; Find start position in block comment
+  (backward-char (string-width block-comment-postfix))
+
+  (skip-syntax-backward " ")
+
+  ;; enter centering mode
+  (block-comment-centering-mode 1)
+
+  )
+
 (defun block-comment-insert-or-resume ()
   """ Checks if point is inside block comment or not. If it is, resume previous block comment, else start new block comment """
   (interactive)
@@ -267,13 +289,13 @@
       (beginning-of-line)
       (push-mark)
       (setq read-prefix-pos
-            (search-forward block-comment-prefix (end-of-line))
+            (search-forward block-comment-prefix (end-of-line) t)
             )
 
       (end-of-line)
       (push-mark)
       (setq read-postfix-pos
-            (search-backward block-comment-prefix (end-of-line))
+            (search-backward block-comment-prefix (beginning-of-line) t)
             )
 
       )
@@ -281,8 +303,8 @@
     (if (and read-prefix-pos
              read-postfix-pos
              (> line-width (- block-comment-width 10)))
-        (message "Resume block comment") ;; TODO: Fix resume block comment
-      (block-comment-insert)
+        (block-comment--resume)
+        (block-comment-insert)
       )
     )
   )
