@@ -78,7 +78,7 @@
          )
 
     (if (or (< cur start) (< end cur))      ;; If outside of row boundry
-        (if (block-comment--is-body)        ;; If still in a block comment body (new line)
+        (if (block-comment--is-body t)      ;; If still in a block comment body (new line)
             (block-comment--resume)         ;; Run resume on new line to continue centering
           (block-comment-centering-mode 0)  ;; If not on block comment body, exit centering
           )
@@ -237,59 +237,19 @@
   (block-comment-centering-mode 1)
   )
 
-(defun block-comment-insert ()
-  (interactive)
 
-  ;; go to the current lines start
-  (beginning-of-line)
+(defun block-comment--is-body (&optional inside-body)
+  """ checks if the current row follows the format of a block comment body               """
+  """ Param 'inside-body' specifies if point is required to be inside of the body or not """
+  """       t   -> Point must be inside the body                                         """
+  """       nil -> Point must be on the same row as body                                 """
 
-  ;; Start block comment
-  (block-comment--insert-start-end-row)
-  (insert "\n")
-
-  (save-excursion
-    (insert "\n")
-    (block-comment--insert-start-end-row)
-    )
-
-  (block-comment-insert-centering)
-  )
-
-(defun block-comment--resume ()
-  """ Resumes block comment mode using existing block comment """
-  (interactive)
-
-  ;; init the centering mode without activating it
-  (block-comment-centering--init)
-
-  ;; store the beginning of the block comment
-  (beginning-of-line)
-  (forward-char (+ 1 (string-width block-comment-prefix)))
-  (setq block-comment-centering--start-pos (point-marker)) ;;TODO: Maybe take as arguments
-
-  (end-of-line)
-  (backward-char (+ 1 (string-width block-comment-postfix)))
-  (setq block-comment-centering--end-pos (point-marker))
-
-  (end-of-line)
-  ;; Find start position in block comment
-  (backward-char (string-width block-comment-postfix))
-
-  (skip-syntax-backward " ")
-
-  ;; enter centering mode
-  (block-comment-centering-mode 1)
-
-  )
-
-
-(defun block-comment--is-body ()
-  """ checks if the current row follows the format of a block comment body """
   (interactive)
   (let (
         (line-width 0)
         (read-prefix-pos nil)   ;; Position of current row:s prefix
         (read-postfix-pos nil)  ;; Position of current row:s postfix
+        (point-in-body t)         ;; If point is inside body.
         )
 
     ;; Set line width for this row
@@ -323,25 +283,80 @@
             )
       )
 
-    ;; (message "Is body: %s [prefix: %s, postfix: %s width: %s]"
-    ;;          (and read-prefix-pos
-    ;;               read-postfix-pos
-    ;;               (> line-width (- block-comment-width 20))
-    ;;               )
-    ;;          read-prefix-pos
-    ;;          read-postfix-pos
-    ;;          (> line-width (- block-comment-width 20))
-    ;;          )
+    ;; If inside-body is true, check if point is inside body
+    (when inside-body
+      (setq point-in-body (and
+                           (> (point) read-prefix-pos)
+                           (< (point) read-postfix-pos)
+                           )
+            )
+      )
 
     ;; Return value, t if in block comment row, else nil
     (and read-prefix-pos
          read-postfix-pos
          (> line-width (- block-comment-width 20))
+         point-in-body
          )
     )
 
   )
 
+
+(defun block-comment-insert ()
+  (interactive)
+
+  ;; go to the current lines start
+  (beginning-of-line)
+
+  ;; Start block comment
+  (block-comment--insert-start-end-row)
+  (insert "\n")
+
+  (save-excursion
+    (insert "\n")
+    (block-comment--insert-start-end-row)
+    )
+
+  (block-comment-insert-centering)
+  )
+
+
+(defun block-comment--resume (&optional jump-back)
+  """ Resumes block comment mode using existing block comment """
+  """ If 'jump-back' is t, jumps to end of comment inside block """
+  (interactive)
+
+  (save-excursion
+    ;; init the centering mode without activating it
+    (block-comment-centering--init)
+
+    ;; store the beginning of the block comment
+    (beginning-of-line)
+    (forward-char (+ 1 (string-width block-comment-prefix)))
+    (setq block-comment-centering--start-pos (point-marker))
+
+    (end-of-line)
+    (backward-char (+ 1 (string-width block-comment-postfix)))
+    (setq block-comment-centering--end-pos (point-marker))
+
+    (message "Start: %s End: %s" block-comment-centering--start-pos block-comment-centering--end-pos)
+
+    )
+
+  ;; Jump to end of comment inside block
+  (when jump-back
+    (end-of-line)
+    ;; Find start position in block comment
+    (backward-char (string-width block-comment-postfix))
+
+    (skip-syntax-backward " ")
+    )
+
+  ;; enter centering mode
+  (block-comment-centering-mode 1)
+
+  )
 
 (defun block-comment-insert-or-resume ()
   """ Checks if point is inside block comment or not. If it is, resume previous block comment, else start new block comment """
@@ -349,7 +364,7 @@
 
   ;;Check if in block comment
   (if (block-comment--is-body)
-      (block-comment--resume)   ;; If t, resume
+      (block-comment--resume t) ;; If t, resume with jump back condition
       (block-comment-insert)    ;; Else insert
   )
   )
