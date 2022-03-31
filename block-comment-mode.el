@@ -92,49 +92,64 @@
   )
 
 (defun block-comment-centering--removed-chars (left right)
+  """ Handles when the user removes characters. Inserts padding on right and left side """
+  """ When user comment is wider than target width, no padding is inserted             """
+
   (save-excursion
 
-    (let* ((fill-size (string-width block-comment-fill))
+    (let* (
+           (fill-size (string-width block-comment-fill))
 
-	   (left-fill-count     (/ left fill-size))
-	   (left-fill-remainder (% left fill-size))
+           (left-fill-count     (/ left fill-size))
+           (left-fill-remainder (% left fill-size))
 
-	   (right-fill-count     (/ right fill-size))
-	   (right-fill-remainder (% right fill-size)))
+           (right-fill-count     (/ right fill-size))
+           (right-fill-remainder (% right fill-size))
+
+           (line-width 0)
+           )
 
       (end-of-line)
 
-      ;; skip the postfix
-      (left-char (string-width block-comment-postfix))
+      ;; Set line width for this row
+      (setq line-width (current-column))
 
-      (dotimes (_ right-fill-count) (insert block-comment-fill))
-      (if (> right-fill-remainder 0)
-	  (insert (substring block-comment-fill right-offset right-fill-remainder)))
+      ;; Only insert padding if line is smaller than target width
+      (when (< line-width block-comment-width)
 
-      (beginning-of-line)
+        ;; skip the postfix
+        (left-char (string-width block-comment-postfix))
 
-      ;; skip the prefix
-      (right-char (string-width block-comment-prefix))
+        (dotimes (_ right-fill-count) (insert block-comment-fill))
+        (if (> right-fill-remainder 0)
+            (insert (substring block-comment-fill right-offset right-fill-remainder)))
 
-      (dotimes (_ left-fill-count) (insert block-comment-fill))
-      (if (> left-fill-remainder 0)
-	  (insert (substring block-comment-fill left-offset left-fill-remainder)))
+        (beginning-of-line)
 
-      (let* ((left-offset block-comment-centering--left-offset)
-	     (right-offset block-comment-centering--right-offset))
+        ;; skip the prefix
+        (right-char (string-width block-comment-prefix))
 
-	(setq block-comment-centering--left-offset
-	      (% (+ left-offset left-fill-remainder) fill-size))
+        (dotimes (_ left-fill-count) (insert block-comment-fill))
+        (if (> left-fill-remainder 0)
+            (insert (substring block-comment-fill left-offset left-fill-remainder)))
 
-	(setq block-comment-centering--right-offset
-	      (% (+ right-offset right-fill-remainder) fill-size))
-	)
+        (let* ((left-offset block-comment-centering--left-offset)
+               (right-offset block-comment-centering--right-offset))
+
+          (setq block-comment-centering--left-offset
+                (% (+ left-offset left-fill-remainder) fill-size))
+
+          (setq block-comment-centering--right-offset
+                (% (+ right-offset right-fill-remainder) fill-size))
+          )
+        )
       )
     )
   )
 
-;; TODO: Create check that restarts centering when line has reached width after getting too large
 (defun block-comment-centering--inserted-chars (left right)
+  """ Handles when user inserts characters. Removes padding on right and left side """
+  """ If user comment grows larger than target width, stops removing characters    """
   (let (
         (remain-space-left 0)
         (remain-space-right 0)
