@@ -4,13 +4,18 @@
 ;; (block-comment--init "/*" " " "*/" 80)
 
 
-(defun block-comment--init (prefix fill padding postfix width)
+(defun block-comment--init (width prefix fill postfix enclose-prefix enclose-fill enclose-postfix)
   (interactive)
+  (set (make-local-variable 'block-comment-width) width)
+
   (set (make-local-variable 'block-comment-prefix) prefix)
   (set (make-local-variable 'block-comment-fill) fill)
-  (set (make-local-variable 'block-comment-padding) padding)
   (set (make-local-variable 'block-comment-postfix) postfix)
-  (set (make-local-variable 'block-comment-width) width)
+
+  (set (make-local-variable 'block-comment-enclose-prefix) enclose-prefix)
+  (set (make-local-variable 'block-comment-enclose-fill) enclose-fill)
+  (set (make-local-variable 'block-comment-enclose-postfix) enclose-postfix)
+
   )
 
 (defun block-comment-centering-abort ()
@@ -79,7 +84,7 @@
 
     (if (or (< cur start) (< end cur))      ;; If outside of row boundry
         (if (block-comment--is-body t)      ;; If still in a block comment body (new line)
-            (block-comment--resume)         ;; Run resume on new line to continue centering
+            (block-comment--resume nil)     ;; Run resume on new line to continue centering
           (block-comment-centering-mode 0)  ;; If not on block comment body, exit centering
           )
     )
@@ -205,14 +210,16 @@
 
   (let* (
          (padding-length (- block-comment-width
-                            (+ (string-width block-comment-prefix) (string-width block-comment-postfix))
+                            (+ (string-width block-comment-enclose-prefix)
+                               (string-width block-comment-enclose-postfix)
+                               )
                             )
                          )
-         (padding (make-string padding-length (string-to-char block-comment-padding)))
+         (padding (make-string padding-length (string-to-char block-comment-enclose-fill)))
          )
-    (insert block-comment-prefix)
+    (insert block-comment-enclose-prefix)
     (insert padding)
-    (insert block-comment-postfix)
+    (insert block-comment-enclose-postfix)
     )
   )
 
@@ -244,12 +251,11 @@
   """       t   -> Point must be inside the body                                         """
   """       nil -> Point must be on the same row as body                                 """
 
-  (interactive)
   (let (
         (line-width 0)
         (read-prefix-pos nil)   ;; Position of current row:s prefix
         (read-postfix-pos nil)  ;; Position of current row:s postfix
-        (point-in-body t)         ;; If point is inside body.
+        (point-in-body t)       ;; If point is inside body.
         )
 
     ;; Set line width for this row
@@ -284,13 +290,18 @@
       )
 
     ;; If inside-body is true, check if point is inside body
-    (when inside-body
+    (when (and
+           read-prefix-pos
+           read-postfix-pos
+           inside-body)
+
       (setq point-in-body (and
                            (> (point) read-prefix-pos)
                            (< (point) read-postfix-pos)
                            )
             )
       )
+
 
     ;; Return value, t if in block comment row, else nil
     (and read-prefix-pos
@@ -304,6 +315,7 @@
 
 
 (defun block-comment-insert ()
+  """ Inserts a new block comment and init centering """
   (interactive)
 
   ;; go to the current lines start
@@ -340,8 +352,6 @@
     (backward-char (+ 1 (string-width block-comment-postfix)))
     (setq block-comment-centering--end-pos (point-marker))
 
-    (message "Start: %s End: %s" block-comment-centering--start-pos block-comment-centering--end-pos)
-
     )
 
   ;; Jump to end of comment inside block
@@ -363,7 +373,7 @@
   (interactive)
 
   ;;Check if in block comment
-  (if (block-comment--is-body)
+  (if (block-comment--is-body nil)
       (block-comment--resume t) ;; If t, resume with jump back condition
       (block-comment-insert)    ;; Else insert
   )
