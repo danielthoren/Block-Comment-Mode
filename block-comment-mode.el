@@ -1,35 +1,5 @@
 (provide 'block-comment-mode)
 
-;; lägg detta i ditt mode:
-;; (block-comment--init "/*" " " "*/" 80)
-
-
-(defun block-comment--init (width prefix fill postfix enclose-prefix enclose-fill enclose-postfix)
-  (interactive)
-  (set (make-local-variable 'block-comment-width) width)
-
-  (set (make-local-variable 'block-comment-prefix) prefix)
-  (set (make-local-variable 'block-comment-fill) fill)
-  (set (make-local-variable 'block-comment-postfix) postfix)
-
-  (set (make-local-variable 'block-comment-enclose-prefix) enclose-prefix)
-  (set (make-local-variable 'block-comment-enclose-fill) enclose-fill)
-  (set (make-local-variable 'block-comment-enclose-postfix) enclose-postfix)
-
-  )
-
-(defun block-comment-centering-abort ()
-  (interactive)
-  (block-comment-centering-mode 0))
-
-(defun block-comment-centering-newline ()
-  (interactive)
-  (block-comment-centering-abort)
-  (end-of-line)
-  (insert "\n")
-  (block-comment-insert-centering)
-  )
-
 (define-minor-mode block-comment-centering-mode
   "Toggle block comments centering mode"
   :init-value nil
@@ -45,10 +15,47 @@
 	(block-comment-centering--add-hooks)
     (block-comment-centering--shutdown)
     )
+    )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+"""                          Interactive functions                           """
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun block-comment-insert-or-resume ()
+  """ This function is called to create or resume a block comment                                                           """
+  """ Checks if point is inside block comment or not. If it is, resume previous block comment, else start new block comment """
+  (interactive)
+
+  ;;Check if in block comment
+  (if (block-comment--is-body nil)
+      (block-comment--resume t) ;; If t, resume with jump back condition
+    (block-comment-insert)      ;; Else insert
+    )
   )
 
-(defun block-comment-centering--init ()
+(defun block-comment--init (width prefix fill postfix enclose-prefix enclose-fill enclose-postfix)
+  """ Initializes variables of block-comment-mode                                                     """
+  """ This should be called during initialization of each mode where block-comment-mode shall be used """
+  """ Default behaviour is c/c++ comment style                                                        """
+  (interactive)
+  (set (make-local-variable 'block-comment-width) width)
 
+  (set (make-local-variable 'block-comment-prefix) prefix)
+  (set (make-local-variable 'block-comment-fill) fill)
+  (set (make-local-variable 'block-comment-postfix) postfix)
+
+  (set (make-local-variable 'block-comment-enclose-prefix) enclose-prefix)
+  (set (make-local-variable 'block-comment-enclose-fill) enclose-fill)
+  (set (make-local-variable 'block-comment-enclose-postfix) enclose-postfix)
+
+  )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+"""                          Startup/shutdown logic                          """
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun block-comment-centering--init ()
+  """ Init function run when block-comment-mode is started. Sets default values for variables """
   (unless (boundp 'block-comment-prefix)
     (block-comment--init "/*" " " "*" "*/" 20))
 
@@ -59,13 +66,29 @@
   (set (make-local-variable 'block-comment-centering--right-offset) 0)
   )
 
+(defun block-comment-centering-abort ()
+  """ Turns block-comment-mode off """
+  (interactive)
+  (block-comment-centering-mode 0))
+
+(defun block-comment-centering-newline ()
+  """ Inserts a new line in a block comment """
+  (interactive)
+  (block-comment-centering-abort)
+  (end-of-line)
+  (insert "\n")
+  (block-comment-insert-centering)
+  )
+
 (defun block-comment-centering--shutdown ()
+  """ Turns block comment off by removing the hooks """
   (setq post-command-hook (delete #'block-comment-centering--cursor-moved post-command-hook))
   (setq after-change-functions (delete #'block-comment-centering--edit after-change-functions))
   (block-comment-centering--init)
   )
 
 (defun block-comment-centering--add-hooks ()
+  """ Adds necessary hooks so that block-comment-mode can react to changes in the buffer """
   ;; Keep track of the cursors position, if it leaves the block comment
   ;; then abort the centering mode)
   (add-to-list 'post-command-hook #'block-comment-centering--cursor-moved)
@@ -75,7 +98,8 @@
   )
 
 (defun block-comment-centering--cursor-moved ()
-  """Abort block-comment-mode if cursor is outside of block comment"""
+  """ This function is triggered by a hook every time point has moved        """
+  """ Used to abort block-comment-mode if cursor is outside of block comment """
   (let* (
          (start (marker-position block-comment-centering--start-pos))
          (end (marker-position block-comment-centering--end-pos))
@@ -90,6 +114,59 @@
     )
     )
   )
+
+(defun block-comment-insert ()
+  """ Inserts a new block comment and init centering """
+
+  ;; go to the current lines start
+  (beginning-of-line)
+
+  ;; Start block comment
+  (block-comment--insert-start-end-row)
+  (insert "\n")
+
+  (save-excursion
+    (insert "\n")
+    (block-comment--insert-start-end-row)
+    )
+
+  (block-comment-insert-centering)
+  )
+
+
+(defun block-comment--resume (&optional jump-back)
+  """ Resumes block comment mode using existing block comment """
+  """ If 'jump-back' is t, jumps to end of comment inside block """
+
+  (save-excursion
+    ;; init the centering mode without activating it
+    (block-comment-centering--init)
+
+    ;; store the beginning of the block comment
+    (beginning-of-line)
+    (forward-char (+ 1 (string-width block-comment-prefix)))
+    (setq block-comment-centering--start-pos (point-marker))
+
+    (end-of-line)
+    (backward-char (+ 1 (string-width block-comment-postfix)))
+    (setq block-comment-centering--end-pos (point-marker))
+
+    )
+
+  ;; Jump to end of comment inside block
+  (when jump-back
+    (block-comment--jump-to-end)
+    )
+
+  ;; enter centering mode
+  (block-comment-centering-mode 1)
+
+  )
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+"""                             Centering logic                              """
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment-centering--removed-chars (left right)
   """ Handles when the user removes characters. Inserts padding on right and left side """
@@ -263,24 +340,6 @@
     )
   )
 
-(defun block-comment--insert-start-end-row ()
-  """ Inserts a enclosing line at point """
-  """ A enclosing line is a line inserted before and after the block comment body """
-
-  (let* (
-         (padding-length (- block-comment-width
-                            (+ (string-width block-comment-enclose-prefix)
-                               (string-width block-comment-enclose-postfix)
-                               )
-                            )
-                         )
-         (padding (make-string padding-length (string-to-char block-comment-enclose-fill)))
-         )
-    (insert block-comment-enclose-prefix)
-    (insert padding)
-    (insert block-comment-enclose-postfix)
-    )
-  )
 
 (defun block-comment-insert-centering ()
   """ Inserts a block comment body line at point and initializes centering """
@@ -432,67 +491,21 @@
 
   )
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-"""                          Interactive functions                           """
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defun block-comment--insert-start-end-row ()
+  """ Inserts a enclosing line at point                                           """
+  """ A enclosing line is a line inserted before and after the block comment body """
 
-(defun block-comment-insert ()
-  """ Inserts a new block comment and init centering """
-  (interactive)
-
-  ;; go to the current lines start
-  (beginning-of-line)
-
-  ;; Start block comment
-  (block-comment--insert-start-end-row)
-  (insert "\n")
-
-  (save-excursion
-    (insert "\n")
-    (block-comment--insert-start-end-row)
+  (let* (
+         (padding-length (- block-comment-width
+                            (+ (string-width block-comment-enclose-prefix)
+                               (string-width block-comment-enclose-postfix)
+                               )
+                            )
+                         )
+         (padding (make-string padding-length (string-to-char block-comment-enclose-fill)))
+         )
+    (insert block-comment-enclose-prefix)
+    (insert padding)
+    (insert block-comment-enclose-postfix)
     )
-
-  (block-comment-insert-centering)
-  )
-
-
-(defun block-comment--resume (&optional jump-back)
-  """ Resumes block comment mode using existing block comment """
-  """ If 'jump-back' is t, jumps to end of comment inside block """
-  (interactive)
-
-  (save-excursion
-    ;; init the centering mode without activating it
-    (block-comment-centering--init)
-
-    ;; store the beginning of the block comment
-    (beginning-of-line)
-    (forward-char (+ 1 (string-width block-comment-prefix)))
-    (setq block-comment-centering--start-pos (point-marker))
-
-    (end-of-line)
-    (backward-char (+ 1 (string-width block-comment-postfix)))
-    (setq block-comment-centering--end-pos (point-marker))
-
-    )
-
-  ;; Jump to end of comment inside block
-  (when jump-back
-    (block-comment--jump-to-end)
-    )
-
-  ;; enter centering mode
-  (block-comment-centering-mode 1)
-
-  )
-
-(defun block-comment-insert-or-resume ()
-  """ Checks if point is inside block comment or not. If it is, resume previous block comment, else start new block comment """
-  (interactive)
-
-  ;;Check if in block comment
-  (if (block-comment--is-body nil)
-      (block-comment--resume t) ;; If t, resume with jump back condition
-      (block-comment-insert)    ;; Else insert
-  )
   )
