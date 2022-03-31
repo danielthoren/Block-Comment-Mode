@@ -133,17 +133,62 @@
     )
   )
 
+;; TODO: Create check that restarts centering when line has reached width after getting too large
 (defun block-comment-centering--inserted-chars (left right)
-  (save-excursion
-    (end-of-line)
-    ;; the number of characters to skip at start
-    (left-char (string-width block-comment-prefix))
-    (delete-backward-char right) ;; remove the right portion
-    (beginning-of-line)
+  (let (
+        (remain-space-left 0)
+        (remain-space-right 0)
+        (line-width 0)
+        )
 
-    ;; the number of characters to skip at end
-    (right-char (string-width block-comment-postfix)) ;; remove the left portion
-    (delete-char left)
+    (save-excursion
+
+      ;; Set line width for this row
+      (save-excursion
+
+      (end-of-line)
+      (setq line-width (current-column))
+      )
+
+      ;; Get space remaining on right
+      (save-excursion
+        (setq remain-space-right
+              (block-comment--jump-to-end)
+              )
+        )
+
+      ;; Get space remaining on left
+      (save-excursion
+        (setq remain-space-left
+              (block-comment--jump-to-beginning)
+              )
+        )
+
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;; Left side ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+      ;; If no space on left side, perform operation on right side instead
+      (when (< remain-space-left 3)
+        (setq right (+ right left))
+        (setq left 0)
+        )
+
+      ;; Remove characters at beginning of line
+      (beginning-of-line)
+      (right-char (string-width block-comment-postfix)) ;; remove the left portion
+      (delete-char left)
+
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;; Right side ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+      ;; Remove characters at end of line
+      (end-of-line)
+      (left-char (string-width block-comment-prefix))
+
+      (if (< remain-space-right 3)
+          (insert (make-string right (string-to-char " ")))  ;; If there is no space left, make more space
+          (delete-backward-char right)                       ;; If there is space left, remove the right portion
+          )
+
+      )
     )
   )
 
@@ -164,9 +209,7 @@
   )
 
 (defun block-comment--insert-line ()
-    ;; The idea is to insert the prefix and postifx,
-  ;; and use the fill to insert padding between them so that
-  ;; the total line size is equal to block-comment-width
+  """ Inserts a new block comment body line and puts cursur at the center """
   (let* (
          (fill-size (string-width block-comment-fill))
 
@@ -206,7 +249,8 @@
   )
 
 (defun block-comment--insert-start-end-row ()
-  ;; Inset start/end of block comment
+  """ Inserts a enclosing line at point """
+  """ A enclosing line is a line inserted before and after the block comment body """
 
   (let* (
          (padding-length (- block-comment-width
@@ -224,6 +268,8 @@
   )
 
 (defun block-comment-insert-centering ()
+  """ Inserts a block comment body line at point and initializes centering """
+  """ Puts point at the center of the line                                 """
   (interactive)
 
   ;; init the centering mode without activating it
@@ -242,6 +288,64 @@
 
   ;; enter centering mode
   (block-comment-centering-mode 1)
+  )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+"""                             Helper functions                             """
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun block-comment--jump-to-beginning ()
+  """ jumps to beginning of comment in body at point                   """
+  """ Beginning means the first non-fill character in the body         """
+  """ return: the number of fill characters remaining on the left side """
+  (let (
+        (body-start-pos nil)   ;; Start of block-comment body
+        (comment-start-pos nil);; Start of user comment
+        )
+
+    (beginning-of-line)
+    ;; Find start position in block comment
+    (forward-char (string-width block-comment-prefix))
+
+    ;; Set start of block-comment body
+    (setq body-start-pos (point))
+
+    (skip-syntax-forward " ")
+
+    ;; Set start of user comment
+    (setq comment-start-pos (point))
+
+    ;; Return remaining space between user comment and start of block-comment body
+    (- comment-start-pos body-start-pos)
+    )
+  )
+
+(defun block-comment--jump-to-end ()
+  """ jumps to end of comment in body at point                          """
+  """ End means the last non-fill character in the body                 """
+  """ return: the number of fill characters remaining on the right side """
+
+  (let (
+        (body-end-pos nil)   ;; End of block-comment body
+        (comment-end-pos nil);; End of user comment
+        )
+
+    (end-of-line)
+    ;; Find end position in block comment
+    (backward-char (string-width block-comment-postfix))
+
+    ;; Set end of block-comment body
+    (setq body-end-pos (point))
+
+    (skip-syntax-backward " ")
+
+    ;; Set end of user comment
+    (setq comment-end-pos (point))
+
+    ;; Return remaining space between user comment and end of block-comment body
+    (- body-end-pos comment-end-pos)
+    )
+
   )
 
 
@@ -313,6 +417,9 @@
 
   )
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+"""                          Interactive functions                           """
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment-insert ()
   """ Inserts a new block comment and init centering """
@@ -356,11 +463,7 @@
 
   ;; Jump to end of comment inside block
   (when jump-back
-    (end-of-line)
-    ;; Find start position in block comment
-    (backward-char (string-width block-comment-postfix))
-
-    (skip-syntax-backward " ")
+    (block-comment--jump-to-end)
     )
 
   ;; enter centering mode
