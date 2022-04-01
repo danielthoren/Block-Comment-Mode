@@ -9,6 +9,7 @@
             (define-key map (kbd "C-g") 'block-comment-abort)
             (define-key map (kbd "RET") 'block-comment-abort)
 	        (define-key map (kbd "M-j") 'block-comment-newline)
+	        (define-key map (kbd "C-c C-c") 'block-comment-toggle-centering)
             map)
 
     (if block-comment-mode
@@ -33,6 +34,16 @@
   (end-of-line)
   (insert "\n")
   (block-comment--insert-new-line)
+  )
+
+(defun block-comment-toggle-centering ()
+  """ Toggles centering mode """
+  (interactive)
+  (message "In toggle")
+  (if block-comment-centering-enabled
+      (setq block-comment-centering-enabled nil) ;; If enabled , disable
+      (setq block-comment-centering-enabled t)   ;; If disabled, enable
+      )
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -65,6 +76,11 @@
   (set (make-local-variable 'block-comment-enclose-prefix) enclose-prefix)
   (set (make-local-variable 'block-comment-enclose-fill) enclose-fill)
   (set (make-local-variable 'block-comment-enclose-postfix) enclose-postfix)
+
+  ;; Used to remember if is centering or not
+  (set (make-local-variable 'block-comment-centering-enabled) nil)
+  ;; Sets the target spacing between pre/postfix and user comment
+  (set (make-local-variable 'block-comment-edge-offset) 3)
 
   )
 
@@ -100,7 +116,6 @@
   ;; Add a hook that is called everytime the buffer is modified
   (add-to-list 'after-change-functions #'block-comment-centering--edit)
   )
-
 
 (defun block-comment--resume (&optional jump-back)
   """ Resumes block comment mode using existing block comment """
@@ -168,7 +183,16 @@
   (beginning-of-line)
 
   ;; store the beginning of the block comment
-  (setq block-comment-centering--start-pos (point-marker))
+  (save-excursion
+    (forward-char (+
+                   (string-width block-comment-prefix)
+                   block-comment-edge-offset
+                   )
+                  )
+
+    (setq block-comment-centering--start-pos (point-marker))
+    )
+
   (setq block-comment-centering--end-pos (block-comment--insert-line))
 
   (save-excursion
@@ -200,24 +224,29 @@
      )
 
     (insert block-comment-prefix)
+    (insert (make-string fill-count (string-to-char block-comment-fill)))
+    (insert block-comment-postfix)
 
-    ;; insert the left padding
-    (dotimes (_ fill-left-count) (insert block-comment-fill))
+    ;; Jump to center of user comment if centering enabled,
+    ;; else jump to beginning of user comment
+    (if block-comment-centering-enabled
+        (block-comment--jump-to-body-center)
+      (block-comment--jump-to-comment-body-start)
+      )
 
-    ;; This is the point where we want the cursor to end up
+    ;; Return end of block comment
     (save-excursion
-      ;; insert the right padding
-      (dotimes (_ fill-right-count) (insert block-comment-fill))
+      (end-of-line)
+      (backward-char (- (line-end-position)
+                        (+ (string-width block-comment-postfix)
+                           block-comment-edge-offset)
+                        )
+                     )
 
-      (if (> fill-remainder 0)
-	  (insert (substring block-comment-fill 0 fill-remainder)))
-
-      (insert block-comment-postfix)
-
-      ;; store the end of the block comment
       (point-marker)
       )
     )
+
   )
 
 (defun block-comment--insert-start-end-row ()
@@ -267,17 +296,27 @@
   """ This function is triggered by a hokok every time the user has inserted/removed characters        """
   """ It checks if the user removed or added characters, then decides which side of the blockc omment- """
   """ -should be affected. The rest of the work is delegated                                           """
-  (let* ((step (- (- end begin) length))
-	 (min-step (/ step 2))
-	 (max-step (- step min-step))
+  (let* (
+         (step (- (- end begin) length))
+         (min-step (/ step 2))
+         (max-step (- step min-step))
 
-	 (left  (if (= block-comment-centering--order 0) max-step min-step))
-	 (right (if (= block-comment-centering--order 0) min-step max-step)))
+         (left  (if (= block-comment-centering--order 0) max-step min-step))
+         (right (if (= block-comment-centering--order 0) min-step max-step))
+         )
 
+    ;; Alternate between putting larger step on left/right side
     (setq block-comment-centering--order (- 1 block-comment-centering--order))
 
+    ;; If centering is not enabled, only operate on right side of user comment
+    (unless block-comment-centering-enabled
+      (setq left 0)
+      (setq right step)
+      )
+
+    ;; Set correct sign
     (if (< step 0)
-	(block-comment-centering--removed-chars (- 0 right) (- 0 left))
+        (block-comment-centering--removed-chars (- 0 right) (- 0 left))
       (block-comment-centering--inserted-chars left right))
     )
   )
@@ -366,14 +405,14 @@
       ;; Get space remaining on left
       (save-excursion
         (setq remain-space-left
-              (block-comment--jump-to-beginning)
+              (block-comment--jump-to-first-char-in-body)
               )
         )
 
       ;;;;;;;;;;;;;;;;;;;;;;;;;;; Left side ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
       ;; If no space on left side, perform operation on right side instead
-      (when (< remain-space-left 3)
+      (when (< remain-space-left block-comment-edge-offset)
         (setq right (+ right left))
         (setq left 0)
         )
@@ -389,7 +428,7 @@
       (end-of-line)
       (left-char (string-width block-comment-prefix))
 
-      (if (< remain-space-right 3)
+      (if (< remain-space-right block-comment-edge-offset)
           (insert (make-string right (string-to-char " ")))  ;; If there is no space left, make more space
           (delete-backward-char right)                       ;; If there is space left, remove the right portion
           )
@@ -403,7 +442,43 @@
 """                             Helper functions                             """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun block-comment--jump-to-beginning ()
+(defun block-comment--jump-to-body-center ()
+  """ Jumps to the center of the block comment body """
+
+  (let (
+        (line-width 0)
+        (middle-point 0)
+        )
+
+    ;; Set line width for this row
+    (save-excursion
+
+      (end-of-line)
+      (setq line-width (current-column))
+      )
+
+    (setq middle-point (/ line-width 2))
+
+    (beginning-of-line)
+    (forward-char middle-point)
+
+    )
+  )
+
+(defun block-comment--jump-to-comment-body-start ()
+  """ Jumps to the start of user comment section """
+
+  (message "in beg")
+  (beginning-of-line)
+  (forward-char (+ block-comment-edge-offset
+                   (string-width block-comment-prefix)
+                   )
+                )
+
+  (message "pos: %d" (current-column))
+  )
+
+(defun block-comment--jump-to-first-char-in-body ()
   """ jumps to beginning of comment in body at point                   """
   """ Beginning means the first non-fill character in the body         """
   """ return: the number of fill characters remaining on the left side """
