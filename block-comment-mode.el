@@ -138,7 +138,7 @@
 
   ;; Jump to end of comment inside block
   (when jump-back
-    (block-comment--jump-to-end)
+    (block-comment--jump-to-last-char-in-body)
     )
 
   ;; enter centering mode
@@ -308,16 +308,23 @@
     ;; Alternate between putting larger step on left/right side
     (setq block-comment-centering--order (- 1 block-comment-centering--order))
 
-    ;; If centering is not enabled, only operate on right side of user comment
-    (unless block-comment-centering-enabled
-      (setq left 0)
-      (setq right step)
-      )
-
-    ;; Set correct sign
     (if (< step 0)
-        (block-comment-centering--removed-chars (- 0 right) (- 0 left))
-      (block-comment-centering--inserted-chars left right))
+        (progn
+          ;; If centering is not enabled, only add to right side of user comment
+          (unless block-comment-centering-enabled
+            (setq left step)
+            (setq right 0)
+            )
+          (block-comment-centering--removed-chars (- 0 right) (- 0 left))
+          )
+      (progn
+        ;; If centering is not enabled, only remove from right side of user comment
+        (unless block-comment-centering-enabled
+          (setq left 0)
+          (setq right step)
+          )
+        (block-comment-centering--inserted-chars left right))
+      )
     )
   )
 
@@ -398,7 +405,7 @@
       ;; Get space remaining on right
       (save-excursion
         (setq remain-space-right
-              (block-comment--jump-to-end)
+              (block-comment--jump-to-last-char-in-body)
               )
         )
 
@@ -468,14 +475,11 @@
 (defun block-comment--jump-to-comment-body-start ()
   """ Jumps to the start of user comment section """
 
-  (message "in beg")
   (beginning-of-line)
   (forward-char (+ block-comment-edge-offset
                    (string-width block-comment-prefix)
                    )
                 )
-
-  (message "pos: %d" (current-column))
   )
 
 (defun block-comment--jump-to-first-char-in-body ()
@@ -504,7 +508,7 @@
     )
   )
 
-(defun block-comment--jump-to-end ()
+(defun block-comment--jump-to-last-char-in-body ()
   """ jumps to end of comment in body at point                          """
   """ End means the last non-fill character in the body                 """
   """ return: the number of fill characters remaining on the right side """
@@ -521,7 +525,7 @@
     ;; Set end of block-comment body
     (setq body-end-pos (point))
 
-    (skip-syntax-backward " ")
+    (skip-syntax-backward " " block-comment-centering--start-pos)
 
     ;; Set end of user comment
     (setq comment-end-pos (point))
