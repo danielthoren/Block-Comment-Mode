@@ -42,8 +42,10 @@
   (message "In toggle")
   (if block-comment-centering-enabled
       (setq block-comment-centering-enabled nil) ;; If enabled , disable
-      (setq block-comment-centering-enabled t)   ;; If disabled, enable
-      )
+    (setq block-comment-centering-enabled t)   ;; If disabled, enabled
+    )
+  ;; Align text
+  (block-comment--align-text block-comment-centering-enabled)
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -78,7 +80,7 @@
   (set (make-local-variable 'block-comment-enclose-postfix) enclose-postfix)
 
   ;; Used to remember if is centering or not
-  (set (make-local-variable 'block-comment-centering-enabled) nil)
+  (set (make-local-variable 'block-comment-centering-enabled) t)
   ;; Sets the target spacing between pre/postfix and user comment
   (set (make-local-variable 'block-comment-edge-offset) 3)
 
@@ -231,7 +233,7 @@
     ;; else jump to beginning of user comment
     (if block-comment-centering-enabled
         (block-comment--jump-to-body-center)
-      (block-comment--jump-to-comment-body-start)
+      (block-comment--jump-to-body-start)
       )
 
     ;; Return end of block comment
@@ -449,6 +451,28 @@
 """                             Helper functions                             """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
+(defun block-comment--align-text (centering)
+  """ Aligns the text in the comment body, centering it if param 'centering' is t, else aligning to the left """
+  (let (
+        (comment-text-start nil)
+        (comment-text-end nil)
+        )
+    (block-comment--jump-to-first-char-in-body)
+    (setq comment-text-start (point-marker))
+    (block-comment--jump-to-last-char-in-body)
+    (setq comment-text-end (point-marker))
+    (kill-region comment-text-start comment-text-end)
+
+    (if centering
+        (block-comment--jump-to-body-center)
+        (block-comment--jump-to-body-start)
+      )
+
+    (yank)
+    )
+  )
+
 (defun block-comment--jump-to-body-center ()
   """ Jumps to the center of the block comment body """
 
@@ -472,14 +496,15 @@
     )
   )
 
-(defun block-comment--jump-to-comment-body-start ()
-  """ Jumps to the start of user comment section """
+(defun block-comment--jump-to-body-start ()
+  """ Jumps to the start of block comment body """
 
   (beginning-of-line)
   (forward-char (+ block-comment-edge-offset
                    (string-width block-comment-prefix)
                    )
                 )
+  (point-marker)
   )
 
 (defun block-comment--jump-to-first-char-in-body ()
