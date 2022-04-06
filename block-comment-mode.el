@@ -561,18 +561,26 @@
 
   )
 
-
-(defun block-comment--is-body (&optional inside-body)
-  """ checks if the current row follows the format of a block comment body               """
-  """ Param 'inside-body' specifies if point is required to be inside of the body or not """
-  """       t   -> Point must be inside the body                                         """
-  """       nil -> Point must be on the same row as body                                 """
+(defun block-comment--is-body (&optional inside-body enclose)
+  """ checks if the current row follows the format of a block comment body                  """
+  """ Param 'inside-body' specifies if point is required to be inside of the body or not    """
+  """       t   -> Point must be inside the body                                            """
+  """       nil -> Point must be on the same row as body                                    """
+  """ Param 'enclose' specifies if we should look for enclose, or normal body               """
+  """       t   -> Look for enclose by using param 'enclose-fill'                           """
+  """       nil -> Look for block body by using param 'fill'                                """
 
   (let (
         (line-width 0)
         (read-prefix-pos nil)   ;; Position of current row:s prefix
         (read-postfix-pos nil)  ;; Position of current row:s postfix
         (point-in-body t)       ;; If point is inside body.
+        ;; If looking for body, use fill, if looking for enclose, use enclose-fill
+        (fill-type (if enclose
+                          block-comment-enclose-fill
+                        block-comment-fill
+                        )
+                      )
         )
 
     ;; Set line width for this row
@@ -587,7 +595,7 @@
       (beginning-of-line)
       (setq read-prefix-pos
             (search-forward
-             (concat block-comment-prefix " ")
+             (concat block-comment-prefix fill-type)
              (line-end-position)
              t
              )
@@ -600,7 +608,7 @@
       (end-of-line)
       (setq read-postfix-pos
             (search-backward
-             (concat " " block-comment-postfix)
+             (concat fill-type block-comment-postfix)
              (line-beginning-position)
              t)
             )
