@@ -28,12 +28,25 @@
   (block-comment-mode 0))
 
 (defun block-comment-newline ()
-  """ Inserts a new line in a block comment """
+  """ Inserts a new line and moves text to the right of point down to the new line """
   (interactive)
-  (block-comment-abort)
-  (end-of-line)
-  (insert "\n")
-  (block-comment--insert-new-line)
+  (let (
+        (remain-text-start (point-marker))
+        (remain-text-end nil)
+        )
+
+    ;; Kill remaining text between point and end of body
+    (block-comment--jump-to-last-char-in-body)
+    (setq remain-text-end (point-marker))
+    (kill-region remain-text-start remain-text-end)
+
+    (block-comment-abort)
+    (end-of-line)
+    (insert "\n")
+    (block-comment--insert-new-line)
+
+    (yank)
+    )
   )
 
 (defun block-comment-toggle-centering ()
@@ -201,13 +214,20 @@
     (goto-char (marker-position block-comment-centering--end-pos))
     )
 
+  ;; Jump to center of user comment if centering enabled,
+  ;; else jump to beginning of user comment
+  (if block-comment-centering-enabled
+      (block-comment--jump-to-body-center)
+    (block-comment--jump-to-body-start)
+    )
+
   ;; enter centering mode
   (block-comment-mode 1)
   )
 
 
 (defun block-comment--insert-line ()
-  """ Inserts a new block comment body line and puts cursur at the center """
+  """ Inserts a new block comment body line"""
   (let* (
          (fill-size (string-width block-comment-fill))
 
@@ -223,21 +243,15 @@
 
          (fill-left-count (/ fill-count 2))
          (fill-right-count (- fill-count fill-left-count))
-     )
+         )
 
-    (insert block-comment-prefix)
-    (insert (make-string fill-count (string-to-char block-comment-fill)))
-    (insert block-comment-postfix)
-
-    ;; Jump to center of user comment if centering enabled,
-    ;; else jump to beginning of user comment
-    (if block-comment-centering-enabled
-        (block-comment--jump-to-body-center)
-      (block-comment--jump-to-body-start)
-      )
-
-    ;; Return end of block comment
     (save-excursion
+
+      (insert block-comment-prefix)
+      (insert (make-string fill-count (string-to-char block-comment-fill)))
+      (insert block-comment-postfix)
+
+      ;; Return end of block comment
       (end-of-line)
       (backward-char (- (line-end-position)
                         (+ (string-width block-comment-postfix)
@@ -269,8 +283,6 @@
     (insert block-comment-enclose-postfix)
     )
   )
-
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 """                             Centering logic                              """
@@ -502,6 +514,17 @@
   (beginning-of-line)
   (forward-char (+ block-comment-edge-offset
                    (string-width block-comment-prefix)
+                   )
+                )
+  (point-marker)
+  )
+
+(defun block-comment--jump-to-body-end ()
+  """ Jumps to the end of block comment body """
+
+  (end-of-line)
+  (backward-char (+ block-comment-edge-offset
+                   (string-width block-comment-postfix)
                    )
                 )
   (point-marker)
