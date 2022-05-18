@@ -1,3 +1,19 @@
+;; FIXME: Bug when resuming empty block comment. Puts cursor at left position
+;;        while mode is centered. Thus when toggling, the cursor jumps to end
+;;        of block comment
+
+;; FIXME: Bug when toggling between left aligned when block comment is empty
+
+;; FIXME: Bug when toggling between centering and left aligned in lisp
+
+;; TODO: Make blockCommentMode independant of indentation
+
+;; TODO: Add toggling between different lengths of block comments
+
+;; TODO: Add automatic row breaking when block comment is full
+
+;; TODO: Make all rows extend when one row extends in width
+
 (provide 'block-comment-mode)
 
 (define-minor-mode block-comment-mode
@@ -8,12 +24,12 @@
             ;; press C-g to abort comment mode
             (define-key map (kbd "C-g") 'block-comment-abort)
             (define-key map (kbd "RET") 'block-comment-abort)
-	        (define-key map (kbd "M-j") 'block-comment-newline)
-	        (define-key map (kbd "C-c C-c") 'block-comment-toggle-centering)
+            (define-key map (kbd "M-j") 'block-comment-newline)
+            (define-key map (kbd "C-c C-c") 'block-comment-toggle-centering)
             map)
 
     (if block-comment-mode
-	(block-comment--add-hooks)
+    (block-comment--add-hooks)
     (block-comment--shutdown)
     )
     )
@@ -28,7 +44,7 @@
   (block-comment-mode 0))
 
 (defun block-comment-newline ()
-  """ Inserts a new line and moves text to the right of point down to the new line """
+  """ Inserts a new line and moves text to the right of point down"""
   (interactive)
   (let (
         (remain-text-start (point-marker))
@@ -66,8 +82,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--insert-or-resume ()
-  """ This function is called to create or resume a block comment                                                           """
-  """ Checks if point is inside block comment or not. If it is, resume previous block comment, else start new block comment """
+  """ This function is called to create or resume a block comment           """
+  """ Checks if point is inside block comment or not.                       """
+  """ If it is, resumeprevious block comment, else start new block comment  """
   (interactive)
 
   ;;Check if in block comment
@@ -77,10 +94,17 @@
     )
   )
 
-(defun block-comment--init-comment-style (width prefix fill postfix enclose-prefix enclose-fill enclose-postfix)
-  """ Initializes variables of block-comment-mode                                                     """
-  """ This should be called during initialization of each mode where block-comment-mode shall be used """
-  """ Default behaviour is c/c++ comment style                                                        """
+(defun block-comment--init-comment-style (
+                                          width
+                                          prefix
+                                          fill
+                                          postfix
+                                          enclose-prefix
+                                          enclose-fill
+                                          enclose-postfix)
+  """ Initializes variables of block-comment-mode                           """
+  """ This should be called during initialization of each mode where block- """
+  """ comment-mode shall be used. Default behaviour is c/c++ comment style  """
   (interactive)
   (set (make-local-variable 'block-comment-width) width)
 
@@ -104,7 +128,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--init-variables ()
-  """ Init function run when block-comment-mode is started. Sets default values for variables """
+  """ Init function run when block-comment-mode is started.                   """
+  """ Sets default values for variables                                       """
   (unless (boundp 'block-comment-prefix)
     (block-comment--init-comment-style 20   "/*" " " "*/"    "/*" "*" "*/" ))
 
@@ -117,13 +142,16 @@
 
 (defun block-comment--shutdown ()
   """ Turns block comment off by removing the hooks """
-  (setq post-command-hook (delete #'block-comment-centering--cursor-moved post-command-hook))
-  (setq after-change-functions (delete #'block-comment-centering--edit after-change-functions))
+  (setq post-command-hook
+        (delete #'block-comment-centering--cursor-moved post-command-hook))
+  (setq after-change-functions
+        (delete #'block-comment-centering--edit after-change-functions))
   (block-comment--init-variables)
   )
 
 (defun block-comment--add-hooks ()
-  """ Adds necessary hooks so that block-comment-mode can react to changes in the buffer """
+  """   Adds necessary hooks so that block-comment-mode can react to          """
+  """   changes in the buffer                                                 """
   ;; Keep track of the cursors position, if it leaves the block comment
   ;; then abort the centering mode)
   (add-to-list 'post-command-hook #'block-comment-centering--cursor-moved)
@@ -238,7 +266,8 @@
          ;; How many times will the fill string fit inside the padding?
          (fill-count (/ padding-width fill-size))
 
-         ;; How many characters of the fill string needs to be inserted to keep it balanced?
+         ;; How many characters of the fill string needs to be inserted
+         ;; to keep it balanced?
          (fill-remainder (% padding-width fill-size))
 
          (fill-left-count (/ fill-count 2))
@@ -266,8 +295,9 @@
   )
 
 (defun block-comment--insert-start-end-row ()
-  """ Inserts a enclosing line at point                                           """
-  """ A enclosing line is a line inserted before and after the block comment body """
+  """ Inserts a enclosing line at point                                      """
+  """ A enclosing line is a line inserted before and                         """
+  """ after the block comment body                                           """
 
   (let* (
          (padding-length (- block-comment-width
@@ -276,7 +306,9 @@
                                )
                             )
                          )
-         (padding (make-string padding-length (string-to-char block-comment-enclose-fill)))
+         (padding (make-string padding-length
+                               (string-to-char block-comment-enclose-fill))
+                  )
          )
     (insert block-comment-enclose-prefix)
     (insert padding)
@@ -297,9 +329,9 @@
          (cur (point))
          )
 
-    (if (or (< cur start) (< end cur))      ;; If outside of row boundry
-        (if (block-comment--is-body t)      ;; If still in a block comment body (new line)
-            (block-comment--resume nil)     ;; Run resume on new line to continue centering
+    (if (or (< cur start) (< end cur))  ;; If outside of row boundry
+        (if (block-comment--is-body t)  ;; If still in a block comment body
+            (block-comment--resume nil) ;; Run resume on new line to continue
           (block-comment-mode 0)  ;; If not on block comment body, exit centering
           )
     )
@@ -307,9 +339,10 @@
   )
 
 (defun block-comment-centering--edit (begin end length)
-  """ This function is triggered by a hokok every time the user has inserted/removed characters        """
-  """ It checks if the user removed or added characters, then decides which side of the blockc omment- """
-  """ -should be affected. The rest of the work is delegated                                           """
+  """   This function is triggered by a hook every time the user has         """
+  """   inserted/removed characters. It checks if the user removed or added  """
+  """   characters, then decides which side of the blockc omment should be   """
+  """   affected. The rest of the work is delegated                          """
   (let* (
          (step (- (- end begin) length))
          (min-step (/ step 2))
@@ -332,7 +365,8 @@
           (block-comment-centering--removed-chars (- 0 right) (- 0 left))
           )
       (progn
-        ;; If centering is not enabled, only remove from right side of user comment
+        ;; If centering is not enabled, only remove from right side
+        ;; of user comment
         (unless block-comment-centering-enabled
           (setq left 0)
           (setq right step)
@@ -343,9 +377,9 @@
   )
 
 (defun block-comment-centering--removed-chars (left right)
-  """ Handles when the user removes characters. Inserts padding on right and left side """
-  """ When user comment is wider than target width, no padding is inserted             """
-
+  """ Handles when the user removes characters. Inserts padding on right and  """
+  """ left side. When user comment is wider than target width,                """
+  """ no padding is inserted                                                  """
   (save-excursion
 
     (let* (
@@ -373,7 +407,10 @@
 
         (dotimes (_ right-fill-count) (insert block-comment-fill))
         (if (> right-fill-remainder 0)
-            (insert (substring block-comment-fill right-offset right-fill-remainder)))
+            (insert (substring block-comment-fill
+                               right-offset
+                               right-fill-remainder))
+          )
 
         (beginning-of-line)
 
@@ -382,7 +419,10 @@
 
         (dotimes (_ left-fill-count) (insert block-comment-fill))
         (if (> left-fill-remainder 0)
-            (insert (substring block-comment-fill left-offset left-fill-remainder)))
+            (insert (substring block-comment-fill
+                               left-offset
+                               left-fill-remainder))
+          )
 
         (let* ((left-offset block-comment-centering--left-offset)
                (right-offset block-comment-centering--right-offset))
@@ -399,8 +439,9 @@
   )
 
 (defun block-comment-centering--inserted-chars (left right)
-  """ Handles when user inserts characters. Removes padding on right and left side """
-  """ If user comment grows larger than target width, stops removing characters    """
+  """   Handles when user inserts characters. Removes padding on right and """
+  """  left side. If user comment grows larger than target width,          """
+  """   stops removing characters                                          """
   (let (
         (remain-space-left 0)
         (remain-space-right 0)
@@ -430,7 +471,7 @@
               )
         )
 
-      ;;;;;;;;;;;;;;;;;;;;;;;;;;; Left side ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;; Left side ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
       ;; If no space on left side, perform operation on right side instead
       (when (< remain-space-left block-comment-edge-offset)
@@ -440,18 +481,20 @@
 
       ;; Remove characters at beginning of line
       (beginning-of-line)
-      (right-char (string-width block-comment-postfix)) ;; remove the left portion
+      (right-char (string-width block-comment-postfix));; remove the left portion
       (delete-char left)
 
-      ;;;;;;;;;;;;;;;;;;;;;;;;;;; Right side ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;; Right side ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
       ;; Remove characters at end of line
       (end-of-line)
       (left-char (string-width block-comment-prefix))
 
       (if (< remain-space-right block-comment-edge-offset)
-          (insert (make-string right (string-to-char " ")))  ;; If there is no space left, make more space
-          (delete-backward-char right)                       ;; If there is space left, remove the right portion
+          ;; If there is no space left, make more space
+          (insert (make-string right (string-to-char " ")))
+        ;; If there is space left, remove the right portion
+          (delete-backward-char right)
           )
 
       )
@@ -465,7 +508,8 @@
 
 
 (defun block-comment--align-text (centering)
-  """ Aligns the text in the comment body, centering it if param 'centering' is t, else aligning to the left """
+  """   Aligns the text in the comment body, centering it if param            """
+  """   'centering' is t, else aligning to the left                           """
   (let (
         (comment-text-start nil)
         (comment-text-end nil)
@@ -551,7 +595,8 @@
     ;; Set start of user comment
     (setq comment-start-pos (point))
 
-    ;; Return remaining space between user comment and start of block-comment body
+    ;; Return remaining space between user comment and start of
+    ;; block-comment body
     (- comment-start-pos body-start-pos)
     )
   )
@@ -585,20 +630,22 @@
   )
 
 (defun block-comment--is-body (&optional inside-body enclose)
-  """ checks if the current row follows the format of a block comment body                  """
-  """ Param 'inside-body' specifies if point is required to be inside of the body or not    """
-  """       t   -> Point must be inside the body                                            """
-  """       nil -> Point must be on the same row as body                                    """
-  """ Param 'enclose' specifies if we should look for enclose, or normal body               """
-  """       t   -> Look for enclose by using param 'enclose-fill'                           """
-  """       nil -> Look for block body by using param 'fill'                                """
+  """ checks if the current row follows the format of a block comment body    """
+  """ Param 'inside-body' specifies if point is required to be inside of the  """
+  """                     body or not:                                        """
+  """       t   -> Point must be inside the body                              """
+  """       nil -> Point must be on the same row as body                      """
+  """ Param 'enclose' specifies if we should look for enclose, or normal body """
+  """       t   -> Look for enclose by using param 'enclose-fill'             """
+  """       nil -> Look for block body by using param 'fill'                  """
 
   (let (
         (line-width 0)
         (read-prefix-pos nil)   ;; Position of current row:s prefix
         (read-postfix-pos nil)  ;; Position of current row:s postfix
         (point-in-body t)       ;; If point is inside body.
-        ;; If looking for body, use fill, if looking for enclose, use enclose-fill
+        ;; If looking for body, use fill,
+        ;; if looking for enclose, use enclose-fill
         (fill-type (if enclose
                           block-comment-enclose-fill
                         block-comment-fill
