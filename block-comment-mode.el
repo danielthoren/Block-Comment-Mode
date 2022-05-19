@@ -1,7 +1,3 @@
-;; FIXME: Bug when toggling between left aligned when block comment is empty
-
-;; FIXME: Bug when toggling between centering and left aligned in lisp
-
 ;; TODO: Make blockCommentMode independant of indentation
 
 ;; TODO: Add toggling between different lengths of block comments
@@ -67,7 +63,7 @@
   (message "In toggle")
   (if block-comment-centering-enabled
       (setq block-comment-centering-enabled nil) ;; If enabled , disable
-    (setq block-comment-centering-enabled t)   ;; If disabled, enabled
+    (setq block-comment-centering-enabled t)     ;; If disabled, enabled
     )
   ;; Align text
   (block-comment--align-text block-comment-centering-enabled)
@@ -513,23 +509,32 @@
 
 (defun block-comment--align-text (centering)
   """   Aligns the text in the comment body, centering it if param            """
-  """   'centering' is t, else aligning to the left                           """
+  """   'centering' is t, else aligning to the left.                          """
+  """   If there is no user comment in body, put point at appropriate pos     """
   (let (
         (comment-text-start nil)
         (comment-text-end nil)
         )
-    (block-comment--jump-to-first-char-in-body)
-    (setq comment-text-start (point-marker))
-    (block-comment--jump-to-last-char-in-body)
-    (setq comment-text-end (point-marker))
-    (kill-region comment-text-start comment-text-end)
+    (if (block-comment--has-comment) ;; Align text if there is any
+        (progn
+          (block-comment--jump-to-first-char-in-body)
+          (setq comment-text-start (point-marker))
+          (block-comment--jump-to-last-char-in-body)
+          (setq comment-text-end (point-marker))
+          (kill-region comment-text-start comment-text-end)
 
-    (if centering
-        (block-comment--jump-to-body-center)
+          (if centering
+              (block-comment--jump-to-body-center)
+            (block-comment--jump-to-body-start)
+            )
+
+          (yank)
+          )
+      (if centering ;; If there is no text, move point to appropriate place
+          (block-comment--jump-to-body-center)
         (block-comment--jump-to-body-start)
+        )
       )
-
-    (yank)
     )
   )
 
@@ -635,7 +640,6 @@
 (defun block-comment--has-comment ()
   """ Checks if the block-comment-body at point contains a user comment """
   """ If it does, then return t, else nil                               """
-  (interactive)
   (let (
         (body-end 0)
         )
