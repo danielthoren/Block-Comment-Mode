@@ -1,7 +1,3 @@
-;; FIXME: Bug when resuming empty block comment. Puts cursor at left position
-;;        while mode is centered. Thus when toggling, the cursor jumps to end
-;;        of block comment
-
 ;; FIXME: Bug when toggling between left aligned when block comment is empty
 
 ;; FIXME: Bug when toggling between centering and left aligned in lisp
@@ -89,7 +85,7 @@
 
   ;;Check if in block comment
   (if (block-comment--is-body nil)
-      (block-comment--resume t) ;; If t, resume with jump back condition
+      (block-comment--resume t)  ;; If t, resume with jump back condition
     (block-comment--insert)      ;; Else insert
     )
   )
@@ -161,8 +157,9 @@
   )
 
 (defun block-comment--resume (&optional jump-back)
-  """ Resumes block comment mode using existing block comment """
+  """ Resumes block comment mode using existing block comment   """
   """ If 'jump-back' is t, jumps to end of comment inside block """
+  """ else, inits block comment mode at point                   """
 
   (save-excursion
     ;; init the centering mode without activating it
@@ -179,14 +176,21 @@
 
     )
 
-  ;; Jump to end of comment inside block
+  ;; If there is a user comment, jump to end of said comment
+  ;; If there is no user comment, jump to center if centering,
+  ;;                              else jump to start
   (when jump-back
-    (block-comment--jump-to-last-char-in-body)
+    (if (block-comment--has-comment)
+        (block-comment--jump-to-last-char-in-body)
+      (if block-comment-centering-enabled
+          (block-comment--jump-to-body-center)
+        (block-comment--jump-to-body-start)
+        )
+      )
     )
 
   ;; enter centering mode
   (block-comment-mode 1)
-
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -626,7 +630,25 @@
     ;; Return remaining space between user comment and end of block-comment body
     (- body-end-pos comment-end-pos)
     )
+  )
 
+(defun block-comment--has-comment ()
+  """ Checks if the block-comment-body at point contains a user comment """
+  """ If it does, then return t, else nil                               """
+  (interactive)
+  (let (
+        (body-end 0)
+        )
+    (save-excursion
+      (setq body-end (block-comment--jump-to-body-end))
+      (block-comment--jump-to-body-start)
+      (skip-syntax-forward " " body-end)
+      (not (equal (point-marker)
+                  body-end
+                  )
+           )
+      )
+    )
   )
 
 (defun block-comment--is-body (&optional inside-body enclose)
