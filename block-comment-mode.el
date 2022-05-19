@@ -4,6 +4,10 @@
 ;;       TODO: Make alignment functions position independant
 ;;       TODO: Make newline adhere to indentation of previous comment
 
+;; TODO: Implement automatic block comment width detection
+
+;; TODO: Implement automatic block comment offset detection
+
 ;; TODO: Add toggling between different lengths of block comments
 
 ;; TODO: Add automatic row breaking when block comment is full
@@ -45,7 +49,13 @@
   (let (
         (remain-text-start (point-marker))
         (remain-text-end nil)
+        (indent-level 0)
         )
+
+    (save-excursion
+      (block-comment--jump-to-comment-start)
+      (setq indent-level (current-column))
+      )
 
     ;; Kill remaining text between point and end of body
     (block-comment--jump-to-last-char-in-body)
@@ -55,7 +65,7 @@
     (block-comment-abort)
     (end-of-line)
     (insert "\n")
-    (block-comment--insert-new-line)
+    (block-comment--insert-new-line indent-level)
 
     (yank)
     )
@@ -217,32 +227,30 @@
   )
 
 
-;; TODO: Add input argument telling this function if it should jump to the center
-;;       of the new line, or the beginning
-(defun block-comment--insert-new-line ()
-  """ Inserts a block comment body line at point and initializes centering """
-  """ Puts point at the center of the line                                 """
-  (interactive)
+(defun block-comment--insert-new-line (&optional indent-level)
+  """    Inserts a block comment body line below point, at the             """
+  """    current indentation level and initializes centering               """
+
+  (unless indent-level (setq indent-level   0))
 
   ;; init the centering mode without activating it
   (block-comment--init-variables)
 
-  ;; go to the current lines start
-  (beginning-of-line)
+  ;; Insert new line with same indent
+  (block-comment--insert-line indent-level)
 
-  ;; store the beginning of the block comment
+  ;; Set bomment body start pos
   (save-excursion
-    (forward-char (+
-                   (string-width block-comment-prefix)
-                   block-comment-edge-offset
-                   )
-                  )
-
+    (block-comment--jump-to-body-start 0)
     (setq block-comment-centering--start-pos (point-marker))
     )
 
-  (setq block-comment-centering--end-pos (block-comment--insert-line))
+  (save-excursion
+    (block-comment--jump-to-body-end 0)
+    (setq block-comment-centering--end-pos (point-marker))
+    )
 
+  ;; TODO: Why are we doing this?
   (save-excursion
     (goto-char (marker-position block-comment-centering--end-pos))
     )
@@ -259,8 +267,8 @@
   )
 
 
-(defun block-comment--insert-line ()
-  """ Inserts a new block comment body line"""
+(defun block-comment--insert-line (indent-level)
+  """ Inserts a new block comment body line at point with 'indent-level' """
   (let* (
          (fill-size (string-width block-comment-fill))
 
@@ -280,19 +288,16 @@
          )
 
     (save-excursion
-
+      (beginning-of-line)
+      ;; Bring us to current indent level
+      (insert (make-string indent-level (string-to-char " ")))
+      ;; Insert the comment body
       (insert block-comment-prefix)
       (insert (make-string fill-count (string-to-char block-comment-fill)))
       (insert block-comment-postfix)
 
       ;; Return end of block comment
-      (end-of-line)
-      (backward-char (- (line-end-position)
-                        (+ (string-width block-comment-postfix)
-                           block-comment-edge-offset)
-                        )
-                     )
-
+      (block-comment--jump-to-body-end 0)
       (point-marker)
       )
     )
@@ -331,7 +336,7 @@
   (let* (
          (start (marker-position block-comment-centering--start-pos))
          (end (marker-position block-comment-centering--end-pos))
-         (cur (point)s)
+         (cur (point))
          )
 
     (if (or (< cur start) (< end cur))  ;; If outside of row boundry
@@ -399,16 +404,18 @@
            (line-width 0)
            )
 
-      (end-of-line)
-
       ;; Set line width for this row
-      (setq line-width (current-column))
+      ;; (setq line-width (current-column))
+      (setq line-width (- (block-comment--jump-to-comment-end)
+                          (block-comment--jump-to-comment-start)
+                          )
+            )
 
       ;; Only insert padding if line is smaller than target width
       (when (< line-width block-comment-width)
 
-        ;; skip the postfix
-        (left-char (string-width block-comment-postfix))
+        ;; ---------------------- Add fill to right side ----------------------
+        (block-comment--jump-to-body-end 0)
 
         (dotimes (_ right-fill-count) (insert block-comment-fill))
         (if (> right-fill-remainder 0)
@@ -417,10 +424,9 @@
                                right-fill-remainder))
           )
 
-        (beginning-of-line)
 
-        ;; skip the prefix
-        (right-char (string-width block-comment-prefix))
+        ;; ---------------------- Add fill to left side ----------------------
+        (block-comment--jump-to-body-start 0)
 
         (dotimes (_ left-fill-count) (insert block-comment-fill))
         (if (> left-fill-remainder 0)
@@ -429,6 +435,7 @@
                                left-fill-remainder))
           )
 
+        ;; TODO: What is this doing?
         (let* ((left-offset block-comment-centering--left-offset)
                (right-offset block-comment-centering--right-offset))
 
