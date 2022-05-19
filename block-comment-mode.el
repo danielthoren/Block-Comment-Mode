@@ -1,4 +1,8 @@
+;; FIXME: Bug when inserting newline, incorrect width
+
 ;; TODO: Make blockCommentMode independant of indentation
+;;       TODO: Make alignment functions position independant
+;;       TODO: Make newline adhere to indentation of previous comment
 
 ;; TODO: Add toggling between different lengths of block comments
 
@@ -60,7 +64,6 @@
 (defun block-comment-toggle-centering ()
   """ Toggles centering mode """
   (interactive)
-  (message "In toggle")
   (if block-comment-centering-enabled
       (setq block-comment-centering-enabled nil) ;; If enabled , disable
     (setq block-comment-centering-enabled t)     ;; If disabled, enabled
@@ -111,7 +114,7 @@
   ;; Used to remember if is centering or not
   (set (make-local-variable 'block-comment-centering-enabled) t)
   ;; Sets the target spacing between pre/postfix and user comment
-  (set (make-local-variable 'block-comment-edge-offset) 3)
+  (set (make-local-variable 'block-comment-edge-offset) 2)
 
   )
 
@@ -163,11 +166,13 @@
 
     ;; store the beginning of the block comment
     (beginning-of-line)
-    (forward-char (+ 1 (string-width block-comment-prefix)))
+    (block-comment--jump-to-body-start 0)
+    (backward-char 1)
     (setq block-comment-centering--start-pos (point-marker))
 
     (end-of-line)
-    (backward-char (+ 1 (string-width block-comment-postfix)))
+    (block-comment--jump-to-body-end 0)
+    (forward-char 1)
     (setq block-comment-centering--end-pos (point-marker))
 
     )
@@ -326,7 +331,7 @@
   (let* (
          (start (marker-position block-comment-centering--start-pos))
          (end (marker-position block-comment-centering--end-pos))
-         (cur (point))
+         (cur (point)s)
          )
 
     (if (or (< cur start) (< end cur))  ;; If outside of row boundry
@@ -480,19 +485,17 @@
         )
 
       ;; Remove characters at beginning of line
-      (beginning-of-line)
-      (right-char (string-width block-comment-postfix));; remove the left portion
+      (block-comment--jump-to-body-start 0)
       (delete-char left)
 
       ;;;;;;;;;;;;;;;;;;;;;;;;;;; Right side ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
       ;; Remove characters at end of line
-      (end-of-line)
-      (left-char (string-width block-comment-prefix))
+      (block-comment--jump-to-body-end 0)
 
       (if (< remain-space-right block-comment-edge-offset)
           ;; If there is no space left, make more space
-          (insert (make-string right (string-to-char " ")))
+          (insert (make-string right (string-to-char block-comment-fill)))
         ;; If there is space left, remove the right portion
           (delete-backward-char right)
           )
@@ -561,25 +564,63 @@
     )
   )
 
-(defun block-comment--jump-to-body-start ()
+(defun block-comment--jump-to-body-start (&optional edge-offset)
   """ Jumps to the start of block comment body """
+  (unless edge-offset (setq edge-offset block-comment-edge-offset))
 
-  (beginning-of-line)
-  (forward-char (+ block-comment-edge-offset
-                   (string-width block-comment-prefix)
-                   )
-                )
+  (let (
+        (start-pos (point-marker))
+        (line-end (line-end-position))
+        )
+    (beginning-of-line)
+    ;; Jump back one since search forward starts searching on point + 1
+    (backward-char 1)
+    ;; Place point at end of prefix if a prefix is found
+    (if (search-forward block-comment-prefix
+                        line-end
+                        t)
+        (forward-char edge-offset)
+      (goto-char start-pos)
+      )
+    )
   (point-marker)
   )
 
-(defun block-comment--jump-to-body-end ()
-  """ Jumps to the end of block comment body """
+(defun block-comment--jump-to-comment-start ()
+  """ Jump to block comment start, before the prefix """
+  (interactive)
+  (block-comment--jump-to-body-start 0)
+  (backward-char (string-width block-comment-prefix))
+  (point-marker)
+  )
 
-  (end-of-line)
-  (backward-char (+ block-comment-edge-offset
-                   (string-width block-comment-postfix)
-                   )
-                )
+(defun block-comment--jump-to-body-end (&optional edge-offset)
+  """ Jumps to the end of block comment body """
+  (unless edge-offset (setq edge-offset block-comment-edge-offset))
+
+  (let (
+        (start-pos (point-marker))
+        (line-start (line-beginning-position))
+        )
+    (end-of-line)
+    ;; Jump forward one since search ba starts searching on point + 1
+    (forward-char 1)
+    ;; Place point at end of prefix if a prefix is found
+    (if (search-backward block-comment-postfix
+                        line-start
+                        t)
+        (backward-char edge-offset)
+      (goto-char start-pos)
+      )
+    )
+  (point-marker)
+  )
+
+(defun block-comment--jump-to-comment-end ()
+  """ Jump to block comment end, after the postfix """
+  (interactive)
+  (block-comment--jump-to-body-end 0)
+  (forward-char (string-width block-comment-postfix))
   (point-marker)
   )
 
@@ -594,7 +635,7 @@
 
     (beginning-of-line)
     ;; Find start position in block comment
-    (forward-char (string-width block-comment-prefix))
+    (block-comment--jump-to-body-start 0)
 
     ;; Set start of block-comment body
     (setq body-start-pos (point))
@@ -622,7 +663,7 @@
 
     (end-of-line)
     ;; Find end position in block comment
-    (backward-char (string-width block-comment-postfix))
+    (block-comment--jump-to-body-end 0)
 
     ;; Set end of block-comment body
     (setq body-end-pos (point))
