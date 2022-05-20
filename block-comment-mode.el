@@ -1,4 +1,5 @@
-;; FIXME: Bug when inserting newline, incorrect width
+;; FIXME: Bug when removing whole words from extended block comment row,
+;;        block comment postfix does not set in the correct position
 
 ;; TODO: Make blockCommentMode independant of indentation
 ;;       TODO: Make alignment functions position independant
@@ -10,7 +11,8 @@
 
 ;; TODO: Add toggling between different lengths of block comments
 
-;; TODO: Add automatic row breaking when block comment is full
+;; TODO: Add automatic row breaking when block comment is longer
+;;       than 80 characters
 
 ;; TODO: Make all rows extend when one row extends in width
 
@@ -405,7 +407,6 @@
            )
 
       ;; Set line width for this row
-      ;; (setq line-width (current-column))
       (setq line-width (- (block-comment--jump-to-comment-end)
                           (block-comment--jump-to-comment-start)
                           )
@@ -436,15 +437,15 @@
           )
 
         ;; TODO: What is this doing?
-        (let* ((left-offset block-comment-centering--left-offset)
-               (right-offset block-comment-centering--right-offset))
+        ;; (let* ((left-offset block-comment-centering--left-offset)
+        ;;        (right-offset block-comment-centering--right-offset))
 
-          (setq block-comment-centering--left-offset
-                (% (+ left-offset left-fill-remainder) fill-size))
+        ;;   (setq block-comment-centering--left-offset
+        ;;         (% (+ left-offset left-fill-remainder) fill-size))
 
-          (setq block-comment-centering--right-offset
-                (% (+ right-offset right-fill-remainder) fill-size))
-          )
+        ;;   (setq block-comment-centering--right-offset
+        ;;         (% (+ right-offset right-fill-remainder) fill-size))
+        ;;   )
         )
       )
     )
@@ -502,8 +503,14 @@
 
       (if (< remain-space-right block-comment-edge-offset)
           ;; If there is no space left, make more space
-          (insert (make-string right (string-to-char block-comment-fill)))
-        ;; If there is space left, remove the right portion
+          (progn
+            (insert (make-string right
+                                 (string-to-char block-comment-fill))
+                    )
+            ;; Update end of block comment to avoid aborting block comment mode
+            (setq block-comment-centering--end-pos (point-marker))
+            )
+          ;; If there is space left, remove the right portion
           (delete-backward-char right)
           )
 
