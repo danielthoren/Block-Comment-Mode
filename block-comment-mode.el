@@ -1,5 +1,6 @@
-;; FIXME: Bug when removing whole words from extended block comment row,
-;;        block comment postfix does not set in the correct position
+;; FIXME: Bug, when a word is in the kill ring and toggling between centering
+;;        and non-centering, the word is yanked to the beginning of the
+;;        block comment
 
 ;; TODO: Make blockCommentMode independant of indentation
 ;;       TODO: Make alignment functions position independant
@@ -79,6 +80,11 @@
   (if block-comment-centering-enabled
       (setq block-comment-centering-enabled nil) ;; If enabled , disable
     (setq block-comment-centering-enabled t)     ;; If disabled, enabled
+    )
+
+  ;; Set order to right side (end of comment)
+  (unless block-comment-centering-enabled
+    (setq block-comment-centering--order 1)
     )
   ;; Align text
   (block-comment--align-text block-comment-centering-enabled)
@@ -364,18 +370,9 @@
          (right (if (= block-comment-centering--order 0) min-step max-step))
          )
 
-    ;; Alternate between putting larger step on left/right side
-    (setq block-comment-centering--order (- 1 block-comment-centering--order))
-
     (if (< step 0)
-        (progn
-          ;; If centering is not enabled, only add to right side of user comment
-          (unless block-comment-centering-enabled
-            (setq left step)
-            (setq right 0)
-            )
-          (block-comment-centering--removed-chars (- 0 right) (- 0 left))
-          )
+        (block-comment-centering--removed-chars block-comment-centering--order
+                                                block-comment-centering-enabled)
       (progn
         ;; If centering is not enabled, only remove from right side
         ;; of user comment
@@ -385,67 +382,54 @@
           )
         (block-comment-centering--inserted-chars left right))
       )
+
+    ;; Alternate between putting larger step on left/right side
+    ;; if centering is enabled
+    (when block-comment-centering-enabled
+      (setq block-comment-centering--order
+            (- 1 block-comment-centering--order))
+      )
     )
   )
 
-(defun block-comment-centering--removed-chars (left right)
+(defun block-comment-centering--removed-chars (curr-side centering)
   """ Handles when the user removes characters. Inserts padding on right and  """
   """ left side. When user comment is wider than target width,                """
-  """ no padding is inserted                                                  """
+  """ no padding is inserted.                                                 """
+  """ curr-side : The side that should get the largest fill count:            """
+  """             0 -> left side (start of body)                              """
+  """             1 -> right side (end of body)                               """
+  """ centering : If t, the block comment is centered, else not               """
   (save-excursion
 
     (let* (
-           (fill-size (string-width block-comment-fill))
-
-           (left-fill-count     (/ left fill-size))
-           (left-fill-remainder (% left fill-size))
-
-           (right-fill-count     (/ right fill-size))
-           (right-fill-remainder (% right fill-size))
-
-           (line-width 0)
-           )
-
-      ;; Set line width for this row
-      (setq line-width (- (block-comment--jump-to-comment-end)
+           ;; Get line width after change
+           (line-width (- (block-comment--jump-to-comment-end)
                           (block-comment--jump-to-comment-start)
                           )
-            )
+                       )
+           ;; Get the removed width
+           (removed-width (- block-comment-width
+                             line-width)
+                          )
+           )
 
-      ;; Only insert padding if line is smaller than target width
-      (when (< line-width block-comment-width)
-
-        ;; ---------------------- Add fill to right side ----------------------
-        (block-comment--jump-to-body-end 0)
-
-        (dotimes (_ right-fill-count) (insert block-comment-fill))
-        (if (> right-fill-remainder 0)
-            (insert (substring block-comment-fill
-                               right-offset
-                               right-fill-remainder))
+      (while (> removed-width 0)
+        ;; Alternate between right and left side
+        (if (= curr-side 0)
+            (block-comment--jump-to-body-start 0)
+              (block-comment--jump-to-body-end 0)
+              )
+        ;; Insert the fill and substract fill from removed-width
+        (insert block-comment-fill)
+        (setq removed-width (- removed-width
+                               (string-width block-comment-fill)
+                               )
+              )
+        ;; Only alternate if centering is enabled
+        (when centering
+          (setq curr-side (- 1 curr-side))
           )
-
-
-        ;; ---------------------- Add fill to left side ----------------------
-        (block-comment--jump-to-body-start 0)
-
-        (dotimes (_ left-fill-count) (insert block-comment-fill))
-        (if (> left-fill-remainder 0)
-            (insert (substring block-comment-fill
-                               left-offset
-                               left-fill-remainder))
-          )
-
-        ;; TODO: What is this doing?
-        ;; (let* ((left-offset block-comment-centering--left-offset)
-        ;;        (right-offset block-comment-centering--right-offset))
-
-        ;;   (setq block-comment-centering--left-offset
-        ;;         (% (+ left-offset left-fill-remainder) fill-size))
-
-        ;;   (setq block-comment-centering--right-offset
-        ;;         (% (+ right-offset right-fill-remainder) fill-size))
-        ;;   )
         )
       )
     )
