@@ -1,14 +1,8 @@
-;; FIXME: Bug, when a word is in the kill ring and toggling between centering
-;;        and non-centering, the word is yanked to the beginning of the
-;;        block comment
-
-;; TODO: Make blockCommentMode independant of indentation
-;;       TODO: Make alignment functions position independant
-;;       TODO: Make newline adhere to indentation of previous comment
+;; FIXME: Bug when align-text is called. If text has been removed prior to
+;;        invoking this function, it is reinserted either at the beginning
+;;        of the text, or end
 
 ;; TODO: Implement automatic block comment width detection
-
-;; TODO: Implement automatic block comment offset detection
 
 ;; TODO: Add toggling between different lengths of block comments
 
@@ -16,6 +10,8 @@
 ;;       than 80 characters
 
 ;; TODO: Make all rows extend when one row extends in width
+
+;; TODO: Add auto format on M-q
 
 (provide 'block-comment-mode)
 
