@@ -2,14 +2,15 @@
 ;;        invoking this function, it is reinserted either at the beginning
 ;;        of the text, or end
 
-;; TODO: Implement automatic block comment width detection
+;; TODO: Make all rows extend when one row extends in width
+;;       Make function that does this
 
 ;; TODO: Add toggling between different lengths of block comments
 
+;; TODO: Implement automatic block comment width detection
+
 ;; TODO: Add automatic row breaking when block comment is longer
 ;;       than 80 characters
-
-;; TODO: Make all rows extend when one row extends in width
 
 ;; TODO: Add auto format on M-q
 
