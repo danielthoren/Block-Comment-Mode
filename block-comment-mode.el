@@ -5,6 +5,10 @@
 ;; TODO: Make all rows extend when one row extends in width
 ;;       Make function that does this
 
+;; TODO: Fix handling when block comment text is too long (at boundry). If tring
+;; to resume a block comment where the text is right next to the delimiter,
+;; it instead inserts a new block comment
+
 ;; TODO: Add toggling between different lengths of block comments
 
 ;; TODO: Implement automatic block comment width detection
@@ -152,11 +156,16 @@
 
 (defun block-comment--shutdown ()
   """ Turns block comment off by removing the hooks """
+  (block-comment--remove-hooks)
+  (block-comment--init-variables)
+  )
+
+(defun block-comment--remove-hooks ()
+  """  Adds necessasry hooks                                                  """
   (setq post-command-hook
         (delete #'block-comment-centering--cursor-moved post-command-hook))
   (setq after-change-functions
         (delete #'block-comment-centering--edit after-change-functions))
-  (block-comment--init-variables)
   )
 
 (defun block-comment--add-hooks ()
@@ -499,12 +508,6 @@
     )
   )
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-"""                             Helper functions                             """
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
 (defun block-comment--align-text (centering)
   """   Aligns the text in the comment body, centering it if param            """
   """   'centering' is t, else aligning to the left.                          """
@@ -533,6 +536,172 @@
         (block-comment--jump-to-body-start)
         )
       )
+    )
+  )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+"""                       Width alignment functions                          """
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun block-comment--align-width ()
+  (interactive)
+  (let (
+        (start-pos (point-marker))
+        (target-width (block-comment--get-width))
+        (curr-width 0)
+        (width-diff 0)
+        (is-body nil)
+        (is-enclose nil)
+        (begin 0)
+        (end 0)
+        )
+
+    ;; Disable hooks to disable centering when adjusting width
+    (block-comment--remove-hooks)
+
+
+    (save-excursion
+
+      ;; Move to line below bottom of block commente
+      (while (progn
+               ;; Move down one line
+               (block-comment--move-line 1)
+
+               ;; Check if this is body or enclose
+               (setq is-body (block-comment--is-body nil nil))
+               (setq is-enclose (block-comment--is-body nil t))
+
+               ;; Exit if not in body
+               (or is-body is-enclose)
+               )
+        )
+      ;; Move down to the line below the bottom of block comment
+      (block-comment--move-line 1)
+
+      ;; Align all block comment rows above
+      (while (progn
+               ;; Move up one line
+               (block-comment--move-line -1)
+
+               ;; Check if this is body or enclose
+               (setq is-body (block-comment--is-body nil nil))
+               (setq is-enclose (block-comment--is-body nil t))
+
+               ;; Exit if not in body
+               (or is-body is-enclose)
+               )
+
+        (setq curr-width (block-comment--get-width))
+        (setq width-diff (- target-width curr-width))
+
+        ;; When normal block comment line
+        (when is-body
+          (block-comment--align-row-width width-diff
+                                          block-comment-fill)
+          ) ;; When is-body
+
+        ;; When enclose
+        (when is-enclose
+          (block-comment--align-row-width width-diff
+                                          block-comment-enclose-fill)
+          ) ;; When enclose
+        ) ;; while
+      )
+    )
+
+  ;; Re-enable hooks
+  (block-comment--add-hooks)
+  )
+
+(defun block-comment--align-row-width (width-diff fill)
+  """  Increases the block comment width  'width-increase' characters.         """
+  """  This is done by filling with 'fil' at the beginning and end of          """
+  """  the comment.                                                            """
+  """  Param 'width-diff': How much the width should change, increases if      """
+  """                      positive, decreases if negative                     """
+  """  Param 'fill'      : The char to fill with                               """
+  """  OBS: This function assumes that the block comment body fits inside the  """
+  """  new boundry!                                                            """
+  (let* (
+         (step (abs width-diff))
+         (min-step (/ step 2))
+         (max-step (- step min-step))
+
+         (left  (if (= block-comment-centering--order 0) max-step min-step))
+         (right (if (= block-comment-centering--order 0) min-step max-step))
+         )
+
+    ;; Alternate between putting larger step on left/right side
+    (setq block-comment-centering--order
+          (- 1 block-comment-centering--order))
+
+    ;; If width should increase
+    (when (> width-diff 0)
+      (block-comment--jump-to-first-char-in-body)
+      (insert (make-string left
+                           (string-to-char fill)
+                           )
+              )
+
+      (block-comment--jump-to-last-char-in-body)
+      (insert (make-string left
+                           (string-to-char fill)
+                           )
+              )
+      ) ;; End when width-diff positive
+
+    (when (< width-diff 0)
+      (block-comment--jump-to-first-char-in-body)
+      (delete-forward-char left)
+
+      (block-comment--jump-to-last-char-in-body)
+      (delete-backward-char right)
+      )
+    )
+  )
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+"""                             Helper functions                             """
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defun block-comment--move-line (count)
+  """  Moves point 'count' lines up/down, keeping the column position.         """
+  """  Param 'count':                                                          """
+  """                 +x -> move point x lines down                            """
+  """                 -x -> move point x lines up                              """
+  (let (
+        (column (current-column))
+        )
+    (forward-line count)
+    (move-to-column column)
+    )
+  )
+
+(defun block-comment--get-width (&optional body)
+  """  Returns the width of the block comment at point                         """
+  """  Param 'body' specifies if we should take theh width of the body or the  """
+  """               commment:                                                  """
+  """                        t   -> Take width of body                         """
+  """                        nil -> Takw width of comment                      """
+  (let (
+        (comment-start 0)
+        (comment-end 0)
+        )
+
+    (if body
+        (save-excursion
+          (setq comment-start (block-comment--jump-to-body-start))
+          (setq comment-end (block-comment--jump-to-body-end))
+          )
+      (save-excursion
+        (setq comment-start (block-comment--jump-to-comment-start))
+        (setq comment-end (block-comment--jump-to-comment-end))
+        )
+      )
+
+    (- comment-end comment-start)
     )
   )
 
@@ -700,7 +869,6 @@
   """ Param 'enclose' specifies if we should look for enclose, or normal body """
   """       t   -> Look for enclose by using param 'enclose-fill'             """
   """       nil -> Look for block body by using param 'fill'                  """
-
   (let (
         (line-width 0)
         (read-prefix-pos nil)   ;; Position of current row:s prefix
