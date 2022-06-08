@@ -5,6 +5,10 @@
 ;; TODO: Make all rows extend when one row extends in width
 ;;       Make function that does this
 
+;; TODO: Fix handling when block comment text is too long (at boundry). If tring
+;; to resume a block comment where the text is right next to the delimiter,
+;; it instead inserts a new block comment
+
 ;; TODO: Add toggling between different lengths of block comments
 
 ;; TODO: Implement automatic block comment width detection
@@ -555,8 +559,25 @@
     ;; Disable hooks to disable centering when adjusting width
     (block-comment--remove-hooks)
 
-    ;; Align above
     (save-excursion
+      ;; Move to line below bottom of block commente
+      (while (progn
+               ;; Move down one line
+               (block-comment--move-line 1)
+
+               ;; Check if this is body or enclose
+               (setq is-body (block-comment--is-body nil nil))
+               (setq is-enclose (block-comment--is-body nil t))
+
+               ;; Exit if not in body
+               (or is-body is-enclose)
+               )
+        ) ;; End while
+
+      ;; Move down to the line below the bottom of block comment
+      (block-comment--move-line 1)
+
+      ;; Align all block comment rows above
       (while (progn
                ;; Move up one line
                (block-comment--move-line -1)
