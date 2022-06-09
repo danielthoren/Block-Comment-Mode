@@ -2,12 +2,25 @@
 ;;        invoking this function, it is reinserted either at the beginning
 ;;        of the text, or end
 
+;; FIXME: Bug when making new comment row while standing in the middle of
+;;        text. When the text in front of point is moved to the next
+;;        line, it shortenes the previous comment to below target
+
+;; FIXME: Make block comment mode recognize block comments even if the offset
+;;        between pre/postfix is not correct
+
+;; FIXME: Bug when resuming a non-centered block comment. When centering is
+;;        disabled and a block comment is resumed, it still tries to center
+
+;; TODO: Make block comment width indentation sensative, meaning that it does
+;;       not exceed a strict width limit (80 characters)
+
 ;; TODO: Make all rows extend when one row extends in width
 ;;       Make function that does this
 
-;; TODO: Fix handling when block comment text is too long (at boundry). If tring
-;; to resume a block comment where the text is right next to the delimiter,
-;; it instead inserts a new block comment
+;; TODO: Implement auto format of block comment:
+;;        * Align width of each row
+;;        * Adjust offset between pre/postfix and text
 
 ;; TODO: Add toggling between different lengths of block comments
 
@@ -544,72 +557,78 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--align-width ()
+"""  Aligns the width of all rows in accordance with the widest row          """
   (interactive)
   (let (
         (start-pos (point-marker))
-        (target-width (block-comment--get-width))
-        (curr-width 0)
-        (width-diff 0)
-        (is-body nil)
-        (is-enclose nil)
-        (begin 0)
-        (end 0)
+        (target-width (+ (block-comment--get-widest-comment-text)
+                         (* block-comment-edge-offset 2)
+                         (string-width block-comment-prefix)
+                         (string-width block-comment-postfix))
+                      )
         )
+    (message "widest comment text: %d edge offset: %d prefix: %d postfix: %dtarget width: %d"
+             (block-comment--get-widest-comment-text)
+             block-comment-edge-offset
+             (string-width block-comment-prefix)
+             (string-width block-comment-postfix)
+             target-width
+             )
 
     ;; Disable hooks to disable centering when adjusting width
     (block-comment--remove-hooks)
 
     (save-excursion
-      ;; Move to line below bottom of block commente
-      (while (progn
-               ;; Move down one line
-               (block-comment--move-line 1)
-
-               ;; Check if this is body or enclose
-               (setq is-body (block-comment--is-body nil nil))
-               (setq is-enclose (block-comment--is-body nil t))
-
-               ;; Exit if not in body
-               (or is-body is-enclose)
-               )
-        ) ;; End while
-
-      ;; Move down to the line below the bottom of block comment
-      (block-comment--move-line 1)
-
-      ;; Align all block comment rows above
-      (while (progn
-               ;; Move up one line
-               (block-comment--move-line -1)
-
-               ;; Check if this is body or enclose
-               (setq is-body (block-comment--is-body nil nil))
-               (setq is-enclose (block-comment--is-body nil t))
-
-               ;; Exit if not in body
-               (or is-body is-enclose)
-               )
-
-        (setq curr-width (block-comment--get-width))
-        (setq width-diff (- target-width curr-width))
-
-        ;; When normal block comment line
-        (when is-body
-          (block-comment--align-row-width width-diff
-                                          block-comment-fill)
-          ) ;; When is-body
-
-        ;; When enclose
-        (when is-enclose
-          (block-comment--align-row-width width-diff
-                                          block-comment-enclose-fill)
-          ) ;; When enclose
-        ) ;; while
+      (block-comment--jump-below-comment)
+      (block-comment--adjust-rows-above-to-target-width target-width)
       )
     )
 
   ;; Re-enable hooks
   (block-comment--add-hooks)
+  )
+
+(defun block-comment--adjust-rows-above-to-target-width (target-width)
+  """  Aligns all block comment rows above to the given target width           """
+  """  Param 'target-width': The width to align to                             """
+  (let (
+        (curr-width 0)
+        (width-diff 0)
+        (is-body nil)
+        (is-enclose nil)
+        )
+
+    ;; Align all block comment rows above
+    (while (progn
+             ;; Move up one line
+             (block-comment--move-line -1)
+
+             ;; Check if this is body or enclose
+             (setq is-body (block-comment--is-body nil nil))
+             (setq is-enclose (block-comment--is-body nil t))
+
+             ;; Exit if not in body
+             (or is-body is-enclose)
+             )
+
+      (setq curr-width (block-comment--get-width))
+      (setq width-diff (- target-width curr-width))
+
+      (message "width diff: %d" width-diff)
+
+      ;; When normal block comment line
+      (when is-body
+        (block-comment--align-row-width width-diff
+                                        block-comment-fill)
+        ) ;; When is-body
+
+      ;; When enclose
+      (when is-enclose
+        (block-comment--align-row-width width-diff
+                                        block-comment-enclose-fill)
+        ) ;; When enclose
+      ) ;; while
+    )
   )
 
 (defun block-comment--align-row-width (width-diff fill)
@@ -626,13 +645,11 @@
          (min-step (/ step 2))
          (max-step (- step min-step))
 
-         (left  (if (= block-comment-centering--order 0) max-step min-step))
-         (right (if (= block-comment-centering--order 0) min-step max-step))
+         (left  max-step)
+         (right min-step)
          )
 
-    ;; Alternate between putting larger step on left/right side
-    (setq block-comment-centering--order
-          (- 1 block-comment-centering--order))
+    ;; TODO: Add handling when not centering enabled
 
     ;; If width should increase
     (when (> width-diff 0)
@@ -643,7 +660,7 @@
               )
 
       (block-comment--jump-to-last-char-in-body)
-      (insert (make-string left
+      (insert (make-string right
                            (string-to-char fill)
                            )
               )
@@ -678,7 +695,48 @@
     )
   )
 
+(defun block-comment--get-widest-comment-text ()
+  """  Finds the width of the widest block comment text above point and        """
+  """  returns said width. The block comment text is the actual user text      """
+  """  inside the block comment body.                                          """
+  (let (
+        (widest-width 0)
+        (curr-width 0)
+        (is-body nil)
+        (is-enclose nil)
+        )
+
+    (save-excursion
+      ;; Jump to the row just below the block comment
+      (block-comment--jump-below-comment)
+
+      (while (progn
+               ;; Move up one line
+               (block-comment--move-line -1)
+
+               ;; Check if this is body or enclose
+               (setq is-body (block-comment--is-body nil nil))
+               (setq is-enclose (block-comment--is-body nil t))
+
+               ;; Exit if not in body
+               (or is-body is-enclose)
+               )
+
+        (setq curr-width (block-comment--get-comment-text-width))
+        (when (> curr-width widest-width)
+          (setq widest-width curr-width)
+          ) ;; End when
+
+        ) ;; End while
+      ) ;; End save-excursion
+
+    ;; Return widest width
+    widest-width
+    ) ;; End let
+  )
+
 (defun block-comment--get-width (&optional body)
+  (interactive)
   """  Returns the width of the block comment at point                         """
   """  Param 'body' specifies if we should take theh width of the body or the  """
   """               commment:                                                  """
@@ -696,12 +754,57 @@
           )
       (save-excursion
         (setq comment-start (block-comment--jump-to-comment-start))
-        (setq comment-end (block-comment--jump-to-comment-end))
+        (setq comment-end (block-comment--jump-to-comment-end 0))
         )
       )
 
     (- comment-end comment-start)
     )
+  )
+
+(defun block-comment--get-comment-text-width ()
+  """  Gets the width of the actual text within the block comment              """
+  (let (
+        (text-start 0)
+        (text-end 0)
+        )
+
+    (save-excursion
+      ;; Jump to first text column position
+      (block-comment--jump-to-first-char-in-body)
+      (setq text-start (point-marker))
+
+      ;; Jump to last text column position, no offset
+      (block-comment--jump-to-last-char-in-body 0)
+      (setq text-end (point-marker))
+      ) ;; End save-excursion
+
+    (message "text width: %d" (- text-end text-start 1))
+    ;; Return text width
+    (- text-end text-start)
+    ) ;; End let
+  )
+
+(defun block-comment--jump-below-comment ()
+  """  Moves point down to line right below the block comment                """
+  (let (
+        (is-body nil)
+        (is-enclose nil)
+        )
+    ;; Move to line below bottom of block commente
+    (while (progn
+             ;; Move down one line
+             (block-comment--move-line 1)
+
+             ;; Check if this is body or enclose
+             (setq is-body (block-comment--is-body nil nil))
+             (setq is-enclose (block-comment--is-body nil t))
+
+             ;; Exit if not in comment
+             (or is-body is-enclose)
+             )
+      ) ;; End while
+    ) ;; End let
   )
 
 (defun block-comment--jump-to-body-center ()
@@ -751,14 +854,19 @@
 
 (defun block-comment--jump-to-comment-start ()
   """ Jump to block comment start, before the prefix """
-  (interactive)
   (block-comment--jump-to-body-start 0)
   (backward-char (string-width block-comment-prefix))
   (point-marker)
   )
 
 (defun block-comment--jump-to-body-end (&optional edge-offset)
-  """ Jumps to the end of block comment body """
+"""  Jumps to the end of block comment body, meaning the inside of the       """
+"""  block comment, excluding the pre/postfix and the edge offset.           """
+"""  Param 'edge-offset': Sets a custome edge offset, meaning the distance   """
+"""                       to the postfix. By default, this distance is set   """
+"""                       by the global variable:                            """
+"""                       'block-comment-edge-offset'                        """
+"""  Return: The position of point                                           """
   (unless edge-offset (setq edge-offset block-comment-edge-offset))
 
   (let (
@@ -779,18 +887,28 @@
   (point-marker)
   )
 
-(defun block-comment--jump-to-comment-end ()
-  """ Jump to block comment end, after the postfix """
+(defun block-comment--jump-to-comment-end (&optional offset)
   (interactive)
+  """  Jump to block comment end, the char directly after after the postfix.  """
+  """  Param 'offset': Offset can be used to move the position from the       """
+  """                  default position                                       """
+  """  Return: point-marker                                                   """
+
+  (unless offset
+    (setq offset 1)
+    )
+
   (block-comment--jump-to-body-end 0)
-  (forward-char (string-width block-comment-postfix))
+  (forward-char (- (string-width block-comment-postfix) 1))
+  (forward-char offset)
   (point-marker)
   )
 
-(defun block-comment--jump-to-first-char-in-body ()
-  """ jumps to beginning of comment in body at point                   """
-  """ Beginning means the first non-fill character in the body         """
-  """ return: the number of fill characters remaining on the left side """
+(defun block-comment--jump-to-first-char-in-body (&optional offset)
+  """   Jumps to beginning of comment in body at point                        """
+  """   Beginning means the first non-fill character in the body              """
+  """   Param: 'offset': Jumps to first char in body - this offset            """
+  """   return: the number of fill characters remaining on the left side      """
   (let (
         (body-start-pos nil)   ;; Start of block-comment body
         (comment-start-pos nil);; Start of user comment
@@ -814,15 +932,19 @@
     )
   )
 
-(defun block-comment--jump-to-last-char-in-body ()
-  """ jumps to end of comment in body at point                          """
-  """ End means the last non-fill character in the body                 """
-  """ return: the number of fill characters remaining on the right side """
-
+(defun block-comment--jump-to-last-char-in-body (&optional offset)
+  """  jumps to end of comment in body at point End means the place right     """
+  """  after the last non-fill character in the body                          """
+  """  Param: 'offset': Jumps to last char in body + this offset. Default = 1 """
+  """  return: the number of fill characters remaining on the right side      """
   (let (
         (body-end-pos nil)   ;; End of block-comment body
         (comment-end-pos nil);; End of user comment
         )
+    ;; Set default value
+    (unless offset
+      (setq offset 1)
+      )
 
     (end-of-line)
     ;; Find end position in block comment
@@ -831,7 +953,12 @@
     ;; Set end of block-comment body
     (setq body-end-pos (point))
 
+    ;; Jump back to character pos right after last char in body
     (skip-syntax-backward " " block-comment-centering--start-pos)
+    ;; Jump back one more to stand on last char in body
+    (backward-char 1)
+    ;; Jump forward by offset
+    (forward-char offset)
 
     ;; Set end of user comment
     (setq comment-end-pos (point))
