@@ -2,8 +2,9 @@
 ;;        invoking this function, it is reinserted either at the beginning
 ;;        of the text, or end
 
-;; FIXME: Make block comment mode recognize block comments even if the offset
-;;        between pre/postfix is not correct
+;; FIXME: Aligning width increases width too much
+
+;; FIXME: Newline acts strange sometimes
 
 ;; TODO: Make block comment width indentation sensative, meaning that it does
 ;;       not exceed a strict width limit (80 characters)
@@ -11,18 +12,12 @@
 ;; TODO: Make all rows extend when one row extends in width
 ;;       Make function that does this
 
-;; TODO: Implement auto format of block comment:
-;;        * Align width of each row
-;;        * Adjust offset between pre/postfix and text
-
 ;; TODO: Add toggling between different lengths of block comments
 
 ;; TODO: Implement automatic block comment width detection
 
 ;; TODO: Add automatic row breaking when block comment is longer
 ;;       than 80 characters
-
-;; TODO: Add auto format on M-q
 
 (provide 'block-comment-mode)
 
@@ -36,7 +31,7 @@
             (define-key map (kbd "RET") 'block-comment-abort)
             (define-key map (kbd "M-j") 'block-comment-newline)
             (define-key map (kbd "C-c C-c") 'block-comment-toggle-centering)
-            (define-key map (kbd "TAB") 'block-comment-align-width)
+            (define-key map (kbd "TAB") 'block-comment-format-comment)
             map)
 
     (if block-comment-mode
@@ -62,13 +57,7 @@
   (let (
         (remain-text-start (point-marker))
         (remain-text-end nil)
-        (indent-level 0)
         )
-
-    (save-excursion
-      (block-comment--jump-to-comment-start)
-      (setq indent-level (current-column))
-      )
 
     ;; Kill remaining text between point and end of body
     (block-comment--jump-to-last-char-in-body)
@@ -77,13 +66,14 @@
 
     (end-of-line)
     (insert "\n")
-    (block-comment--insert-new-line indent-level)
+    (indent-relative)
+    (block-comment--insert-new-line)
 
     (yank)
     )
 
   (block-comment--add-hooks)
-  ;; (block-comment-align-width)
+  (block-comment--align-width)
   )
 
 (defun block-comment-toggle-centering ()
@@ -102,6 +92,15 @@
   (block-comment--align-text block-comment-centering-enabled)
   )
 
+(defun block-comment-format-comment ()
+  (interactive)
+  """  Formats the current block comment, doing the following:                 """
+  """       - Aligns block comment width                                       """
+  """       - Aligns block comment text                                        """
+  (block-comment--align-all-text)
+  (block-comment--align-width)
+  )
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 """                          Interactive functions                           """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -114,7 +113,11 @@
 
   ;;Check if in block comment
   (if (block-comment--is-body nil)
-      (block-comment--resume t)  ;; If t, resume with jump back condition
+      (progn
+        (block-comment--resume t)      ;; If t, resume with jump back condition
+        (block-comment-format-comment) ;; Auto format comment
+        (block-comment--jump-to-last-char-in-body)
+        )
     (block-comment--insert)      ;; Else insert
     )
 
@@ -134,7 +137,6 @@
   """ Initializes variables of block-comment-mode                           """
   """ This should be called during initialization of each mode where block- """
   """ comment-mode shall be used. Default behaviour is c/c++ comment style  """
-  (interactive)
 
   (unless centering-default
     (setq centering-default nil)
@@ -174,7 +176,7 @@
   (set (make-local-variable 'block-comment-centering--right-offset) 0)
   ;; If the diff between left/right margins for a row is smaller than this value,
   ;; then we assume that we are in centering mode
-  (set (make-local-variable 'block-comment--centering-diff-thresh) 5)
+  (set (make-local-variable 'block-comment--centering-diff-thresh) 10)
   )
 
 (defun block-comment--shutdown ()
@@ -263,15 +265,14 @@
 (defun block-comment--insert ()
   """ Inserts a new block comment and init centering """
 
-  ;; go to the current lines start
-  (beginning-of-line)
-
   ;; Start block comment
   (block-comment--insert-start-end-row)
   (insert "\n")
+  (indent-relative)
 
   (save-excursion
     (insert "\n")
+    (indent-relative)
     (block-comment--insert-start-end-row)
     )
 
@@ -279,19 +280,17 @@
   )
 
 
-(defun block-comment--insert-new-line (&optional indent-level)
+(defun block-comment--insert-new-line ()
   """    Inserts a block comment body line below point, at the             """
   """    current indentation level and initializes centering               """
-
-  (unless indent-level (setq indent-level   0))
 
   ;; init the centering mode without activating it
   (block-comment--init-variables)
 
   ;; Insert new line with same indent
-  (block-comment--insert-line indent-level)
+  (block-comment--insert-line)
 
-  ;; Set bomment body start pos
+  ;; Set comment body start pos
   (save-excursion
     (block-comment--jump-to-body-start 0)
     (setq block-comment-centering--start-pos (point-marker))
@@ -311,30 +310,19 @@
   )
 
 
-(defun block-comment--insert-line (indent-level)
+(defun block-comment--insert-line ()
   """ Inserts a new block comment body line at point with 'indent-level' """
   (let* (
-         (fill-size (string-width block-comment-fill))
-
-         (padding-width (- block-comment-width
-                           (+ (string-width block-comment-prefix)
-                              (string-width block-comment-postfix))))
-
-         ;; How many times will the fill string fit inside the padding?
-         (fill-count (/ padding-width fill-size))
-
-         ;; How many characters of the fill string needs to be inserted
-         ;; to keep it balanced?
-         (fill-remainder (% padding-width fill-size))
-
-         (fill-left-count (/ fill-count 2))
-         (fill-right-count (- fill-count fill-left-count))
+         (fill-count (- block-comment-width
+                        (+ (current-column)
+                           (string-width block-comment-prefix)
+                           (string-width block-comment-postfix)
+                           )
+                        )
+                     )
          )
 
     (save-excursion
-      (beginning-of-line)
-      ;; Bring us to current indent level
-      (insert (make-string indent-level (string-to-char " ")))
       ;; Insert the comment body
       (insert block-comment-prefix)
       (insert (make-string fill-count (string-to-char block-comment-fill)))
@@ -354,7 +342,8 @@
   """ after the block comment body                                           """
 
   (let* (
-         (padding-length (- block-comment-width
+         (target-width (- block-comment-width (current-column)))
+         (padding-length (- target-width
                             (+ (string-width block-comment-enclose-prefix)
                                (string-width block-comment-enclose-postfix)
                                )
@@ -422,9 +411,10 @@
 
     (let* (
            ;; Get line width after change
-           (line-width (- (block-comment--jump-to-comment-end)
-                          (block-comment--jump-to-comment-start)
-                          )
+           (line-width (progn
+                         (block-comment--jump-to-comment-end)
+                         (current-column)
+                         )
                        )
            ;; Get the removed width
            (removed-width (- block-comment-width
@@ -461,7 +451,14 @@
         (remain-space-left 0)
         (remain-space-right 0)
         (line-width 0)
+        (edge-offset block-comment-edge-offset)
         )
+
+    ;; Make edge offset 1 char larger when centering to make it easier to
+    ;; differentiate between the modes
+    (when block-comment-centering-enabled
+      (setq edge-offset (+ edge-offset 1))
+      )
 
     (save-excursion
 
@@ -489,7 +486,7 @@
       ;;;;;;;;;;;;;;;;;;;;;;;;;;; Left side ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
       ;; If no space on left side, perform operation on right side instead
-      (when (< remain-space-left block-comment-edge-offset)
+      (when (<= remain-space-left edge-offset)
         (setq right (+ right left))
         (setq left 0)
         )
@@ -503,7 +500,7 @@
       ;; Remove characters at end of line
       (block-comment--jump-to-body-end 0)
 
-      (if (< remain-space-right block-comment-edge-offset)
+      (if (<= remain-space-right edge-offset)
           ;; If there is no space left, make more space
           (progn
             (insert (make-string right
@@ -523,6 +520,25 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 """                         Text alignment functions                         """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun block-comment--align-all-text ()
+  """  Align text position of all block comment rows using auto detection      """
+  """  for centering/non-centering                                             """
+  (save-excursion
+    ;; Jump to the postamble row, the row right beneath the last comment body
+    (block-comment--jump-below-comment -1)
+
+    (while (progn
+             ;; Move up one line
+             (block-comment--move-line -1)
+
+             ;; Check if this is body or enclose
+             (block-comment--is-body nil nil)
+             )
+      (block-comment--align-text (block-comment--is-centering-row))
+      )
+    )
+  )
 
 (defun block-comment--align-text (centering)
   """   Aligns the text in the comment body, centering it if param            """
@@ -561,13 +577,12 @@
 """                       Width alignment functions                          """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun block-comment-align-width ()
+(defun block-comment--align-width ()
 """  Aligns the width of all rows in accordance with the widest row          """
-  (interactive)
   (let (
         (start-pos (point-marker))
         (target-width (+ (block-comment--get-widest-comment-text)
-                         (* block-comment-edge-offset 2)
+                         (* (+ block-comment-edge-offset 1) 2)
                          (string-width block-comment-prefix)
                          (string-width block-comment-postfix))
                       )
@@ -659,7 +674,7 @@
       ;; When not centering, only remove from the right if possible
       (let (
             (remain-left (block-comment--jump-to-first-char-in-body))
-            (remain-right (block-comment--jump-to-last-char-in-body))
+            (remain-right (block-comment--jump-to-last-char-in-body 0))
             )
         ;; When negative width diff, try to remove as many characters as
         ;; possible form the right to keep the formatting
@@ -675,17 +690,15 @@
         )
       )
 
-    (message "step: %d left: %d right: %d" step left right)
-
     ;; If width should increase
     (when (> width-diff 0)
-      (block-comment--jump-to-first-char-in-body)
+      (block-comment--jump-to-body-start 0)
       (insert (make-string left
                            (string-to-char fill)
                            )
               )
 
-      (block-comment--jump-to-last-char-in-body)
+      (block-comment--jump-to-body-end 0)
       (insert (make-string right
                            (string-to-char fill)
                            )
@@ -693,13 +706,13 @@
       ) ;; End when width-diff positive
 
     (when (< width-diff 0)
-      (block-comment--jump-to-first-char-in-body)
+      (block-comment--jump-to-body-start 0)
       (delete-forward-char left)
 
-      (block-comment--jump-to-last-char-in-body)
+      (block-comment--jump-to-body-end 0)
       (delete-backward-char right)
       )
-    )
+    ) ;; End when width-diff negative
   )
 
 
@@ -709,19 +722,21 @@
 
 
 (defun block-comment--is-centering-row ()
-  (interactive)
-  """  Checks if the current block comment row is centering or non-centering   """
-  """  by looking at the offsets between the text and the pre/postfix.         """
-  """  If it cannot determine which it is, it assumes the current mode         """
+  """  Checks if the current block comment row is centering or non-centering.  """
+  """  If the left margin is larger than (edge-offset + 1) and the diff        """
+  """  between the margins is less than centering-diff-thresh,                 """
+  """  then is centering                                                       """
   (save-excursion
   (let (
         (begin-width (block-comment--jump-to-first-char-in-body))
-        (end-width (block-comment--jump-to-last-char-in-body))
+        (end-width (block-comment--jump-to-last-char-in-body 0))
         )
     ;; If diff between begin/end width is smaller than x, then assume
     ;; that we are in centering mode
-    (> block-comment--centering-diff-thresh
-       (abs (- begin-width end-width)))
+    (and (> begin-width (+ block-comment-edge-offset 1))
+         (> block-comment--centering-diff-thresh
+            (abs (- begin-width end-width)))
+         )
     )
     )
   )
@@ -751,7 +766,7 @@
         )
 
     (save-excursion
-      ;; Jump to the row just below the block comment
+      ;; Jump to the postamble row, the row right beneath the last comment body
       (block-comment--jump-below-comment -1)
 
       (while (progn
@@ -812,10 +827,12 @@
       ;; Jump to first text column position
       (block-comment--jump-to-first-char-in-body)
       (setq text-start (point-marker))
+      ;; (setq text-start (current-column))
 
       ;; Jump to last text column position, no offset
       (block-comment--jump-to-last-char-in-body 0)
       (setq text-end (point-marker))
+      ;; (setq text-end (current-column))
       ) ;; End save-excursion
 
     ;; Return text width
@@ -828,7 +845,7 @@
   """  Param 'offset': The offset can be used to tweak the relative          """
   """                  position that point ends on:                          """
   """                      +x -> Move point x lines further down             """
-  """                      -x -> Move poiint x lines further up              """
+  """                      -x -> Move point x lines further up               """
   (unless offset
     (setq offset 0)
     )
