@@ -82,8 +82,8 @@
     (yank)
     )
 
-  (block-comment-mode 1)
-  (block-comment-align-width)
+  (block-comment--add-hooks)
+  ;; (block-comment-align-width)
   )
 
 (defun block-comment-toggle-centering ()
@@ -129,11 +129,17 @@
                                           postfix
                                           enclose-prefix
                                           enclose-fill
-                                          enclose-postfix)
+                                          enclose-postfix
+                                          &optional centering-default)
   """ Initializes variables of block-comment-mode                           """
   """ This should be called during initialization of each mode where block- """
   """ comment-mode shall be used. Default behaviour is c/c++ comment style  """
   (interactive)
+
+  (unless centering-default
+    (setq centering-default nil)
+    )
+
   (set (make-local-variable 'block-comment-width) width)
 
   (set (make-local-variable 'block-comment-prefix) prefix)
@@ -145,7 +151,7 @@
   (set (make-local-variable 'block-comment-enclose-postfix) enclose-postfix)
 
   ;; Used to remember if is centering or not
-  (set (make-local-variable 'block-comment-centering-enabled) t)
+  (set (make-local-variable 'block-comment-centering-enabled) centering-default)
   ;; Sets the target spacing between pre/postfix and user comment
   (set (make-local-variable 'block-comment-edge-offset) 2)
 
@@ -166,6 +172,9 @@
   (set (make-local-variable 'block-comment-centering--order) 1)
   (set (make-local-variable 'block-comment-centering--left-offset) 0)
   (set (make-local-variable 'block-comment-centering--right-offset) 0)
+  ;; If the diff between left/right margins for a row is smaller than this value,
+  ;; then we assume that we are in centering mode
+  (set (make-local-variable 'block-comment--centering-diff-thresh) 5)
   )
 
 (defun block-comment--shutdown ()
@@ -291,11 +300,6 @@
   (save-excursion
     (block-comment--jump-to-body-end 0)
     (setq block-comment-centering--end-pos (point-marker))
-    )
-
-  ;; TODO: Why are we doing this?
-  (save-excursion
-    (goto-char (marker-position block-comment-centering--end-pos))
     )
 
   ;; Jump to center of user comment if centering enabled,
@@ -516,12 +520,15 @@
     )
   )
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+"""                         Text alignment functions                         """
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defun block-comment--align-text (centering)
   """   Aligns the text in the comment body, centering it if param            """
   """   'centering' is t, else aligning to the left.                          """
   """   If there is no user comment in body, put point at appropriate pos     """
   (block-comment--remove-hooks)
-
   (let (
         (comment-text-start nil)
         (comment-text-end nil)
@@ -565,6 +572,11 @@
                          (string-width block-comment-postfix))
                       )
         )
+
+    ;; Dont make width less than target
+    (when (< target-width block-comment-width)
+      (setq target-width block-comment-width)
+      )
 
     ;; Disable hooks to disable centering when adjusting width
     (block-comment--remove-hooks)
@@ -638,7 +650,32 @@
          (right min-step)
          )
 
-    ;; TODO: Add handling when not centering enabled
+    (if (block-comment--is-centering-row)
+        ;; When centering, move text to center to avoid truncating text
+        (progn
+          (block-comment--align-text t)
+          (block-comment--remove-hooks)
+          )
+      ;; When not centering, only remove from the right if possible
+      (let (
+            (remain-left (block-comment--jump-to-first-char-in-body))
+            (remain-right (block-comment--jump-to-last-char-in-body))
+            )
+        ;; When negative width diff, try to remove as many characters as
+        ;; possible form the right to keep the formatting
+        (when (< width-diff 0)
+          (setq right (if (> remain-right step) step remain-right))
+          (setq left (- step right))
+          )
+        ;; When positive width diff, add all to the right
+        (when (> width-diff 0)
+          (setq right (+ left right))
+          (setq left 0)
+          )
+        )
+      )
+
+    (message "step: %d left: %d right: %d" step left right)
 
     ;; If width should increase
     (when (> width-diff 0)
@@ -670,6 +707,24 @@
 """                             Helper functions                             """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
+(defun block-comment--is-centering-row ()
+  (interactive)
+  """  Checks if the current block comment row is centering or non-centering   """
+  """  by looking at the offsets between the text and the pre/postfix.         """
+  """  If it cannot determine which it is, it assumes the current mode         """
+  (save-excursion
+  (let (
+        (begin-width (block-comment--jump-to-first-char-in-body))
+        (end-width (block-comment--jump-to-last-char-in-body))
+        )
+    ;; If diff between begin/end width is smaller than x, then assume
+    ;; that we are in centering mode
+    (> block-comment--centering-diff-thresh
+       (abs (- begin-width end-width)))
+    )
+    )
+  )
 
 (defun block-comment--move-line (count)
   """  Moves point 'count' lines up/down, keeping the column position.         """
@@ -828,6 +883,7 @@
   """  Param 'edge-offset': The offset from the block comment prefix,          """
   """                       by default, this value is equal to block comment   """
   """                       edge offset.                                       """
+  """  Ret : The position of the body start                                    """
   (unless edge-offset (setq edge-offset block-comment-edge-offset))
 
   (let (
@@ -849,7 +905,8 @@
   )
 
 (defun block-comment--jump-to-comment-start ()
-  """ Jump to block comment start, before the prefix """
+  """  Jump to block comment start, before the prefix.                         """
+  """  Ret: The position of the comment start                                  """
   (block-comment--jump-to-body-start 0)
   (backward-char (string-width block-comment-prefix))
   (point-marker)
@@ -862,7 +919,7 @@
 """                       to the postfix. By default, this distance is set   """
 """                       by the global variable:                            """
 """                       'block-comment-edge-offset'                        """
-"""  Return: The position of point                                           """
+"""  Ret: The position of point                                              """
   (unless edge-offset (setq edge-offset block-comment-edge-offset))
 
   (let (
@@ -900,10 +957,17 @@
   )
 
 (defun block-comment--jump-to-first-char-in-body (&optional offset)
-  """   Jumps to beginning of comment in body at point                        """
-  """   Beginning means the first non-fill character in the body              """
-  """   Param: 'offset': Jumps to first char in body - this offset            """
-  """   return: the number of fill characters remaining on the left side      """
+  """   Jumps to the first char in the comment body text                       """
+  """   Beginning means the first non-fill character in the body               """
+  """   Param: 'offset': The offset can be used to change where to jump:       """
+  """                    +x -> Jump closer to postfix                          """
+  """                    -x -> Jump closer to prefix                           """
+  """   Ret: the number of fill characters remaining on the left side          """
+
+  (unless offset
+    (setq offset 0)
+    )
+
   (let (
         (body-start-pos nil)   ;; Start of block-comment body
         (comment-start-pos nil);; Start of user comment
@@ -921,6 +985,8 @@
     ;; Set start of user comment
     (setq comment-start-pos (point))
 
+    (forward-char offset)
+
     ;; Return remaining space between user comment and start of
     ;; block-comment body
     (- comment-start-pos body-start-pos)
@@ -931,7 +997,7 @@
   """  jumps to end of comment in body at point End means the place right     """
   """  after the last non-fill character in the body                          """
   """  Param: 'offset': Jumps to last char in body + this offset. Default = 1 """
-  """  return: the number of fill characters remaining on the right side      """
+  """  Ret: the number of fill characters remaining on the right side         """
   (let (
         (body-end-pos nil)   ;; End of block-comment body
         (comment-end-pos nil);; End of user comment
