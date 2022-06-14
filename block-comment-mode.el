@@ -406,6 +406,8 @@
             (- 1 block-comment-centering--order))
       )
     )
+
+  ;; (block-comment--align-width)
   )
 
 (defun block-comment-centering--removed-chars (curr-side centering)
@@ -611,8 +613,6 @@
       (setq curr-width (block-comment--get-width))
       (setq width-diff (- target-width curr-width))
 
-      (message "width diff: %d" width-diff)
-
       ;; When normal block comment line
       (when is-body
         (block-comment--align-row-width width-diff
@@ -705,18 +705,14 @@
 
     (save-excursion
       ;; Jump to the row just below the block comment
-      (block-comment--jump-below-comment)
+      (block-comment--jump-below-comment -1)
 
       (while (progn
                ;; Move up one line
                (block-comment--move-line -1)
 
                ;; Check if this is body or enclose
-               (setq is-body (block-comment--is-body nil nil))
-               (setq is-enclose (block-comment--is-body nil t))
-
-               ;; Exit if not in body
-               (or is-body is-enclose)
+               (block-comment--is-body nil nil)
                )
 
         (setq curr-width (block-comment--get-comment-text-width))
@@ -733,7 +729,6 @@
   )
 
 (defun block-comment--get-width (&optional body)
-  (interactive)
   """  Returns the width of the block comment at point                         """
   """  Param 'body' specifies if we should take theh width of the body or the  """
   """               commment:                                                  """
@@ -776,14 +771,21 @@
       (setq text-end (point-marker))
       ) ;; End save-excursion
 
-    (message "text width: %d" (- text-end text-start 1))
     ;; Return text width
     (- text-end text-start)
     ) ;; End let
   )
 
-(defun block-comment--jump-below-comment ()
-  """  Moves point down to line right below the block comment                """
+(defun block-comment--jump-below-comment (&optional offset)
+  """ Moves point down to line right below the block comment enclose.        """
+  """  Param 'offset': The offset can be used to tweak the relative          """
+  """                  position that point ends on:                          """
+  """                      +x -> Move point x lines further down             """
+  """                      -x -> Move poiint x lines further up              """
+  (unless offset
+    (setq offset 0)
+    )
+
   (let (
         (is-body nil)
         (is-enclose nil)
@@ -802,6 +804,8 @@
              )
       ) ;; End while
     ) ;; End let
+
+  (block-comment--move-line offset)
   )
 
 (defun block-comment--jump-to-body-center ()
@@ -885,7 +889,6 @@
   )
 
 (defun block-comment--jump-to-comment-end (&optional offset)
-  (interactive)
   """  Jump to block comment end, the char directly after after the postfix.  """
   """  Param 'offset': Offset can be used to move the position from the       """
   """                  default position                                       """
