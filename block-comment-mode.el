@@ -2,10 +2,6 @@
 ;;        invoking this function, it is reinserted either at the beginning
 ;;        of the text, or end
 
-;; FIXME: Bug when making new comment row while standing in the middle of
-;;        text. When the text in front of point is moved to the next
-;;        line, it shortenes the previous comment to below target
-
 ;; FIXME: Make block comment mode recognize block comments even if the offset
 ;;        between pre/postfix is not correct
 
@@ -61,6 +57,8 @@
 (defun block-comment-newline ()
   """ Inserts a new line and moves text to the right of point down"""
   (interactive)
+
+  (block-comment--remove-hooks)
   (let (
         (remain-text-start (point-marker))
         (remain-text-end nil)
@@ -77,7 +75,6 @@
     (setq remain-text-end (point-marker))
     (kill-region remain-text-start remain-text-end)
 
-    (block-comment-abort)
     (end-of-line)
     (insert "\n")
     (block-comment--insert-new-line indent-level)
@@ -85,8 +82,8 @@
     (yank)
     )
 
-  ;; enter centering mode
   (block-comment-mode 1)
+  (block-comment-align-width)
   )
 
 (defun block-comment-toggle-centering ()
@@ -994,7 +991,6 @@
   """       t   -> Look for enclose by using param 'enclose-fill'             """
   """       nil -> Look for block body by using param 'fill'                  """
   (let (
-        (line-width 0)
         (read-prefix-pos nil)   ;; Position of current row:s prefix
         (read-postfix-pos nil)  ;; Position of current row:s postfix
         (point-in-body t)       ;; If point is inside body.
@@ -1006,13 +1002,6 @@
                         )
                       )
         )
-
-    ;; Set line width for this row
-    (save-excursion
-
-      (end-of-line)
-      (setq line-width (current-column))
-      )
 
     ;; Check if prefix is present on this row
     (save-excursion
@@ -1055,7 +1044,6 @@
     ;; Return value, t if in block comment row, else nil
     (and read-prefix-pos
          read-postfix-pos
-         (> line-width (- block-comment-width 20))
          point-in-body
          )
     )
