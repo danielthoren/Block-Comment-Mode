@@ -40,6 +40,7 @@
             (define-key map (kbd "RET") 'block-comment-abort)
             (define-key map (kbd "M-j") 'block-comment-newline)
             (define-key map (kbd "C-c C-c") 'block-comment-toggle-centering)
+            (define-key map (kbd "TAB") 'block-comment-align-width)
             map)
 
     (if block-comment-mode
@@ -231,6 +232,24 @@
     )
   )
 
+(defun block-comment-centering--cursor-moved ()
+  """ This function is triggered by a hook every time point has moved        """
+  """ Used to abort block-comment-mode if cursor is outside of block comment """
+  (let* (
+         (start (marker-position block-comment-centering--start-pos))
+         (end (marker-position block-comment-centering--end-pos))
+         (cur (point))
+         )
+
+    (if (or (< cur start) (< end cur))  ;; If outside of row boundry
+        (if (block-comment--is-body t)  ;; If still in a block comment body
+            (block-comment--resume nil) ;; Run resume on new line to continue
+          (block-comment-mode 0)  ;; If not on block comment body, exit centering
+          )
+    )
+    )
+  )
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 """                             Insert functions                             """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -354,24 +373,6 @@
 """                             Centering logic                              """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun block-comment-centering--cursor-moved ()
-  """ This function is triggered by a hook every time point has moved        """
-  """ Used to abort block-comment-mode if cursor is outside of block comment """
-  (let* (
-         (start (marker-position block-comment-centering--start-pos))
-         (end (marker-position block-comment-centering--end-pos))
-         (cur (point))
-         )
-
-    (if (or (< cur start) (< end cur))  ;; If outside of row boundry
-        (if (block-comment--is-body t)  ;; If still in a block comment body
-            (block-comment--resume nil) ;; Run resume on new line to continue
-          (block-comment-mode 0)  ;; If not on block comment body, exit centering
-          )
-    )
-    )
-  )
-
 (defun block-comment-centering--edit (begin end length)
   """   This function is triggered by a hook every time the user has         """
   """   inserted/removed characters. It checks if the user removed or added  """
@@ -406,8 +407,6 @@
             (- 1 block-comment-centering--order))
       )
     )
-
-  ;; (block-comment--align-width)
   )
 
 (defun block-comment-centering--removed-chars (curr-side centering)
@@ -524,6 +523,8 @@
   """   Aligns the text in the comment body, centering it if param            """
   """   'centering' is t, else aligning to the left.                          """
   """   If there is no user comment in body, put point at appropriate pos     """
+  (block-comment--remove-hooks)
+
   (let (
         (comment-text-start nil)
         (comment-text-end nil)
@@ -549,13 +550,14 @@
         )
       )
     )
+  (block-comment--add-hooks)
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 """                       Width alignment functions                          """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun block-comment--align-width ()
+(defun block-comment-align-width ()
 """  Aligns the width of all rows in accordance with the widest row          """
   (interactive)
   (let (
@@ -566,13 +568,6 @@
                          (string-width block-comment-postfix))
                       )
         )
-    (message "widest comment text: %d edge offset: %d prefix: %d postfix: %dtarget width: %d"
-             (block-comment--get-widest-comment-text)
-             block-comment-edge-offset
-             (string-width block-comment-prefix)
-             (string-width block-comment-postfix)
-             target-width
-             )
 
     ;; Disable hooks to disable centering when adjusting width
     (block-comment--remove-hooks)
@@ -832,7 +827,10 @@
   )
 
 (defun block-comment--jump-to-body-start (&optional edge-offset)
-  """ Jumps to the start of block comment body """
+  """  Jumps to the start of block comment body                                """
+  """  Param 'edge-offset': The offset from the block comment prefix,          """
+  """                       by default, this value is equal to block comment   """
+  """                       edge offset.                                       """
   (unless edge-offset (setq edge-offset block-comment-edge-offset))
 
   (let (
