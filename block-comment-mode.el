@@ -9,9 +9,6 @@
 ;; FIXME: Make block comment mode recognize block comments even if the offset
 ;;        between pre/postfix is not correct
 
-;; FIXME: Bug when resuming a non-centered block comment. When centering is
-;;        disabled and a block comment is resumed, it still tries to center
-
 ;; TODO: Make block comment width indentation sensative, meaning that it does
 ;;       not exceed a strict width limit (80 characters)
 
@@ -86,6 +83,9 @@
 
     (yank)
     )
+
+  ;; enter centering mode
+  (block-comment-mode 1)
   )
 
 (defun block-comment-toggle-centering ()
@@ -119,6 +119,9 @@
       (block-comment--resume t)  ;; If t, resume with jump back condition
     (block-comment--insert)      ;; Else insert
     )
+
+  ;; enter centering mode
+  (block-comment-mode 1)
   )
 
 (defun block-comment--init-comment-style (
@@ -162,7 +165,7 @@
 
   (set (make-local-variable 'block-comment-centering--start-pos) nil)
   (set (make-local-variable 'block-comment-centering--end-pos) nil)
-  (set (make-local-variable 'block-comment-centering--order) 0)
+  (set (make-local-variable 'block-comment-centering--order) 1)
   (set (make-local-variable 'block-comment-centering--left-offset) 0)
   (set (make-local-variable 'block-comment-centering--right-offset) 0)
   )
@@ -197,9 +200,10 @@
   """ If 'jump-back' is t, jumps to end of comment inside block """
   """ else, inits block comment mode at point                   """
 
+  ;; init the centering mode without activating it
+  (block-comment--init-variables)
+
   (save-excursion
-    ;; init the centering mode without activating it
-    (block-comment--init-variables)
 
     ;; store the beginning of the block comment
     (beginning-of-line)
@@ -211,7 +215,6 @@
     (block-comment--jump-to-body-end 0)
     (forward-char 1)
     (setq block-comment-centering--end-pos (point-marker))
-
     )
 
   ;; If there is a user comment, jump to end of said comment
@@ -226,9 +229,6 @@
         )
       )
     )
-
-  ;; enter centering mode
-  (block-comment-mode 1)
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -288,9 +288,6 @@
       (block-comment--jump-to-body-center)
     (block-comment--jump-to-body-start)
     )
-
-  ;; enter centering mode
-  (block-comment-mode 1)
   )
 
 
