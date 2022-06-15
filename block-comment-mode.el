@@ -66,7 +66,7 @@
 
     (end-of-line)
     (insert "\n")
-    (indent-relative)
+    (block-comment--indent-accoring-to-previous-block-row)
     (block-comment--insert-new-line)
 
     (yank)
@@ -268,15 +268,16 @@
   ;; Start block comment
   (block-comment--insert-start-end-row)
   (insert "\n")
-  (indent-relative)
-
-  (save-excursion
-    (insert "\n")
-    (indent-relative)
-    (block-comment--insert-start-end-row)
-    )
+  (block-comment--indent-accoring-to-previous-block-row)
 
   (block-comment--insert-new-line)
+
+  (save-excursion
+    (end-of-line)
+    (insert "\n")
+    (block-comment--indent-accoring-to-previous-block-row)
+    (block-comment--insert-start-end-row)
+    )
   )
 
 
@@ -720,6 +721,28 @@
 """                             Helper functions                             """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun block-comment--indent-accoring-to-previous-block-row ()
+  """  Indent current row in accordance with the block comment row on           """
+  """  the previous line                                                        """
+  (interactive)
+
+  (let (
+        (indent-level 0)
+        )
+
+    (block-comment--move-line -1)
+    (block-comment--jump-to-comment-start)
+    (setq indent-level (current-column))
+    (block-comment--move-line 1)
+
+    (beginning-of-line)
+    (insert (make-string indent-level
+                         (string-to-char " ")
+                         )
+            )
+    )
+  )
+
 
 (defun block-comment--is-centering-row ()
   """  Checks if the current block comment row is centering or non-centering.  """
@@ -840,212 +863,6 @@
     ) ;; End let
   )
 
-(defun block-comment--jump-below-comment (&optional offset)
-  """ Moves point down to line right below the block comment enclose.        """
-  """  Param 'offset': The offset can be used to tweak the relative          """
-  """                  position that point ends on:                          """
-  """                      +x -> Move point x lines further down             """
-  """                      -x -> Move point x lines further up               """
-  (unless offset
-    (setq offset 0)
-    )
-
-  (let (
-        (is-body nil)
-        (is-enclose nil)
-        )
-    ;; Move to line below bottom of block commente
-    (while (progn
-             ;; Move down one line
-             (block-comment--move-line 1)
-
-             ;; Check if this is body or enclose
-             (setq is-body (block-comment--is-body nil nil))
-             (setq is-enclose (block-comment--is-body nil t))
-
-             ;; Exit if not in comment
-             (or is-body is-enclose)
-             )
-      ) ;; End while
-    ) ;; End let
-
-  (block-comment--move-line offset)
-  )
-
-(defun block-comment--jump-to-body-center ()
-  """ Jumps to the center of the block comment body """
-
-  (let (
-        (line-width 0)
-        (middle-point 0)
-        )
-
-    ;; Set line width for this row
-    (save-excursion
-
-      (end-of-line)
-      (setq line-width (current-column))
-      )
-
-    (setq middle-point (/ line-width 2))
-
-    (beginning-of-line)
-    (forward-char middle-point)
-
-    )
-  )
-
-(defun block-comment--jump-to-body-start (&optional edge-offset)
-  """  Jumps to the start of block comment body                                """
-  """  Param 'edge-offset': The offset from the block comment prefix,          """
-  """                       by default, this value is equal to block comment   """
-  """                       edge offset.                                       """
-  """  Ret : The position of the body start                                    """
-  (unless edge-offset (setq edge-offset block-comment-edge-offset))
-
-  (let (
-        (start-pos (point-marker))
-        (line-end (line-end-position))
-        )
-    (beginning-of-line)
-    ;; Jump back one since search forward starts searching on point + 1
-    (backward-char 1)
-    ;; Place point at end of prefix if a prefix is found
-    (if (search-forward block-comment-prefix
-                        line-end
-                        t)
-        (forward-char edge-offset)
-      (goto-char start-pos)
-      )
-    )
-  (point-marker)
-  )
-
-(defun block-comment--jump-to-comment-start ()
-  """  Jump to block comment start, before the prefix.                         """
-  """  Ret: The position of the comment start                                  """
-  (block-comment--jump-to-body-start 0)
-  (backward-char (string-width block-comment-prefix))
-  (point-marker)
-  )
-
-(defun block-comment--jump-to-body-end (&optional edge-offset)
-"""  Jumps to the end of block comment body, meaning the inside of the       """
-"""  block comment, excluding the pre/postfix and the edge offset.           """
-"""  Param 'edge-offset': Sets a custome edge offset, meaning the distance   """
-"""                       to the postfix. By default, this distance is set   """
-"""                       by the global variable:                            """
-"""                       'block-comment-edge-offset'                        """
-"""  Ret: The position of point                                              """
-  (unless edge-offset (setq edge-offset block-comment-edge-offset))
-
-  (let (
-        (start-pos (point-marker))
-        (line-start (line-beginning-position))
-        )
-    (end-of-line)
-    ;; Jump forward one since search ba starts searching on point + 1
-    (forward-char 1)
-    ;; Place point at end of prefix if a prefix is found
-    (if (search-backward block-comment-postfix
-                        line-start
-                        t)
-        (backward-char edge-offset)
-      (goto-char start-pos)
-      )
-    )
-  (point-marker)
-  )
-
-(defun block-comment--jump-to-comment-end (&optional offset)
-  """  Jump to block comment end, the char directly after after the postfix.  """
-  """  Param 'offset': Offset can be used to move the position from the       """
-  """                  default position                                       """
-  """  Return: point-marker                                                   """
-
-  (unless offset
-    (setq offset 1)
-    )
-
-  (block-comment--jump-to-body-end 0)
-  (forward-char (- (string-width block-comment-postfix) 1))
-  (forward-char offset)
-  (point-marker)
-  )
-
-(defun block-comment--jump-to-first-char-in-body (&optional offset)
-  """   Jumps to the first char in the comment body text                       """
-  """   Beginning means the first non-fill character in the body               """
-  """   Param: 'offset': The offset can be used to change where to jump:       """
-  """                    +x -> Jump closer to postfix                          """
-  """                    -x -> Jump closer to prefix                           """
-  """   Ret: the number of fill characters remaining on the left side          """
-
-  (unless offset
-    (setq offset 0)
-    )
-
-  (let (
-        (body-start-pos nil)   ;; Start of block-comment body
-        (comment-start-pos nil);; Start of user comment
-        )
-
-    (beginning-of-line)
-    ;; Find start position in block comment
-    (block-comment--jump-to-body-start 0)
-
-    ;; Set start of block-comment body
-    (setq body-start-pos (point))
-
-    (skip-syntax-forward " ")
-
-    ;; Set start of user comment
-    (setq comment-start-pos (point))
-
-    (forward-char offset)
-
-    ;; Return remaining space between user comment and start of
-    ;; block-comment body
-    (- comment-start-pos body-start-pos)
-    )
-  )
-
-(defun block-comment--jump-to-last-char-in-body (&optional offset)
-  """  jumps to end of comment in body at point End means the place right     """
-  """  after the last non-fill character in the body                          """
-  """  Param: 'offset': Jumps to last char in body + this offset. Default = 1 """
-  """  Ret: the number of fill characters remaining on the right side         """
-  (let (
-        (body-end-pos nil)   ;; End of block-comment body
-        (comment-end-pos nil);; End of user comment
-        )
-    ;; Set default value
-    (unless offset
-      (setq offset 1)
-      )
-
-    (end-of-line)
-    ;; Find end position in block comment
-    (block-comment--jump-to-body-end 0)
-
-    ;; Set end of block-comment body
-    (setq body-end-pos (point))
-
-    ;; Jump back to character pos right after last char in body
-    (skip-syntax-backward " " block-comment-centering--start-pos)
-    ;; Jump back one more to stand on last char in body
-    (backward-char 1)
-    ;; Jump forward by offset
-    (forward-char offset)
-
-    ;; Set end of user comment
-    (setq comment-end-pos (point))
-
-    ;; Return remaining space between user comment and end of block-comment body
-    (- body-end-pos comment-end-pos)
-    )
-  )
-
 (defun block-comment--has-comment ()
   """ Checks if the block-comment-body at point contains a user comment """
   """ If it does, then return t, else nil                               """
@@ -1131,4 +948,215 @@
          )
     )
 
+  )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+"""                         Jump to functions                                """
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun block-comment--jump-to-comment-start ()
+  (interactive)
+  """  Jump to block comment start, before the prefix.                         """
+  """  Ret: The position of the comment start                                  """
+  (block-comment--jump-to-body-start 0)
+  (backward-char (string-width block-comment-prefix))
+  (point-marker)
+  )
+
+(defun block-comment--jump-to-comment-end (&optional offset)
+  """  Jump to block comment end, the char directly after after the postfix.  """
+  """  Param 'offset': Offset can be used to move the position from the       """
+  """                  default position                                       """
+  """  Return: point-marker                                                   """
+
+  (unless offset
+    (setq offset 1)
+    )
+
+  (block-comment--jump-to-body-end 0)
+  (forward-char (- (string-width block-comment-postfix) 1))
+  (forward-char offset)
+  (point-marker)
+  )
+
+(defun block-comment--jump-to-body-center ()
+  """ Jumps to the center of the block comment body """
+
+  (let (
+        (line-width 0)
+        (middle-point 0)
+        )
+
+    ;; Set line width for this row
+    (save-excursion
+
+      (end-of-line)
+      (setq line-width (current-column))
+      )
+
+    (setq middle-point (/ line-width 2))
+
+    (beginning-of-line)
+    (forward-char middle-point)
+
+    )
+  )
+
+(defun block-comment--jump-to-body-start (&optional edge-offset)
+  """  Jumps to the start of block comment body                                """
+  """  Param 'edge-offset': The offset from the block comment prefix,          """
+  """                       by default, this value is equal to block comment   """
+  """                       edge offset.                                       """
+  """  Ret : The position of the body start                                    """
+  (unless edge-offset (setq edge-offset block-comment-edge-offset))
+
+  (let (
+        (start-pos (point-marker))
+        (line-end (line-end-position))
+        )
+    (beginning-of-line)
+    ;; Jump back one since search forward starts searching on point + 1
+    (backward-char 1)
+    ;; Place point at end of prefix if a prefix is found
+    (if (search-forward block-comment-prefix
+                        line-end
+                        t)
+        (forward-char edge-offset)
+      (goto-char start-pos)
+      )
+    )
+  (point-marker)
+  )
+
+(defun block-comment--jump-to-body-end (&optional edge-offset)
+"""  Jumps to the end of block comment body, meaning the inside of the       """
+"""  block comment, excluding the pre/postfix and the edge offset.           """
+"""  Param 'edge-offset': Sets a custome edge offset, meaning the distance   """
+"""                       to the postfix. By default, this distance is set   """
+"""                       by the global variable:                            """
+"""                       'block-comment-edge-offset'                        """
+"""  Ret: The position of point                                              """
+  (unless edge-offset (setq edge-offset block-comment-edge-offset))
+
+  (let (
+        (start-pos (point-marker))
+        (line-start (line-beginning-position))
+        )
+    (end-of-line)
+    ;; Jump forward one since search ba starts searching on point + 1
+    (forward-char 1)
+    ;; Place point at end of prefix if a prefix is found
+    (if (search-backward block-comment-postfix
+                        line-start
+                        t)
+        (backward-char edge-offset)
+      (goto-char start-pos)
+      )
+    )
+  (point-marker)
+  )
+
+(defun block-comment--jump-to-first-char-in-body (&optional offset)
+  """   Jumps to the first char in the comment body text                       """
+  """   Beginning means the first non-fill character in the body               """
+  """   Param: 'offset': The offset can be used to change where to jump:       """
+  """                    +x -> Jump closer to postfix                          """
+  """                    -x -> Jump closer to prefix                           """
+  """   Ret: the number of fill characters remaining on the left side          """
+
+  (unless offset
+    (setq offset 0)
+    )
+
+  (let (
+        (body-start-pos nil)   ;; Start of block-comment body
+        (comment-start-pos nil);; Start of user comment
+        )
+
+    (beginning-of-line)
+    ;; Find start position in block comment
+    (block-comment--jump-to-body-start 0)
+
+    ;; Set start of block-comment body
+    (setq body-start-pos (point))
+
+    (skip-syntax-forward " ")
+
+    ;; Set start of user comment
+    (setq comment-start-pos (point))
+
+    (forward-char offset)
+
+    ;; Return remaining space between user comment and start of
+    ;; block-comment body
+    (- comment-start-pos body-start-pos)
+    )
+  )
+
+(defun block-comment--jump-to-last-char-in-body (&optional offset)
+  """  jumps to end of comment in body at point End means the place right     """
+  """  after the last non-fill character in the body                          """
+  """  Param: 'offset': Jumps to last char in body + this offset. Default = 1 """
+  """  Ret: the number of fill characters remaining on the right side         """
+  (let (
+        (body-end-pos nil)   ;; End of block-comment body
+        (comment-end-pos nil);; End of user comment
+        )
+    ;; Set default value
+    (unless offset
+      (setq offset 1)
+      )
+
+    (end-of-line)
+    ;; Find end position in block comment
+    (block-comment--jump-to-body-end 0)
+
+    ;; Set end of block-comment body
+    (setq body-end-pos (point))
+
+    ;; Jump back to character pos right after last char in body
+    (skip-syntax-backward " " block-comment-centering--start-pos)
+    ;; Jump back one more to stand on last char in body
+    (backward-char 1)
+    ;; Jump forward by offset
+    (forward-char offset)
+
+    ;; Set end of user comment
+    (setq comment-end-pos (point))
+
+    ;; Return remaining space between user comment and end of block-comment body
+    (- body-end-pos comment-end-pos)
+    )
+  )
+
+(defun block-comment--jump-below-comment (&optional offset)
+  """ Moves point down to line right below the block comment enclose.        """
+  """  Param 'offset': The offset can be used to tweak the relative          """
+  """                  position that point ends on:                          """
+  """                      +x -> Move point x lines further down             """
+  """                      -x -> Move point x lines further up               """
+  (unless offset
+    (setq offset 0)
+    )
+
+  (let (
+        (is-body nil)
+        (is-enclose nil)
+        )
+    ;; Move to line below bottom of block commente
+    (while (progn
+             ;; Move down one line
+             (block-comment--move-line 1)
+
+             ;; Check if this is body or enclose
+             (setq is-body (block-comment--is-body nil nil))
+             (setq is-enclose (block-comment--is-body nil t))
+
+             ;; Exit if not in comment
+             (or is-body is-enclose)
+             )
+      ) ;; End while
+    ) ;; End let
+
+  (block-comment--move-line offset)
   )
