@@ -97,7 +97,7 @@
   """  Formats the current block comment, doing the following:                 """
   """       - Aligns block comment width                                       """
   """       - Aligns block comment text                                        """
-  (block-comment--align-all-text)
+  ;; (block-comment--align-all-text)
   (block-comment--align-width)
   )
 
@@ -633,6 +633,8 @@
       (setq curr-width (block-comment--get-width))
       (setq width-diff (- target-width curr-width))
 
+      (message "target width: %d curr width: %d width diff: %d" target-width curr-width width-diff)
+
       ;; When normal block comment line
       (when is-body
         (block-comment--align-row-width width-diff
@@ -778,6 +780,7 @@
   )
 
 (defun block-comment--get-widest-comment-text ()
+  (interactive)
   """  Finds the width of the widest block comment text above point and        """
   """  returns said width. The block comment text is the actual user text      """
   """  inside the block comment body.                                          """
@@ -785,7 +788,6 @@
         (widest-width 0)
         (curr-width 0)
         (is-body nil)
-        (is-enclose nil)
         )
 
     (save-excursion
@@ -794,13 +796,14 @@
 
       (while (progn
                ;; Move up one line
-               (block-comment--move-line -1)
+               (forward-line -1)
 
                ;; Check if this is body or enclose
                (block-comment--is-body nil nil)
                )
 
         (setq curr-width (block-comment--get-comment-text-width))
+        (message "width: %d" curr-width)
         (when (> curr-width widest-width)
           (setq widest-width curr-width)
           ) ;; End when
@@ -840,6 +843,7 @@
   )
 
 (defun block-comment--get-comment-text-width ()
+  (interactive)
   """  Gets the width of the actual text within the block comment              """
   (let (
         (text-start 0)
@@ -849,13 +853,13 @@
     (save-excursion
       ;; Jump to first text column position
       (block-comment--jump-to-first-char-in-body)
-      (setq text-start (point-marker))
-      ;; (setq text-start (current-column))
+      ;; (setq text-start (point-marker))
+      (setq text-start (current-column))
 
       ;; Jump to last text column position, no offset
       (block-comment--jump-to-last-char-in-body 0)
-      (setq text-end (point-marker))
-      ;; (setq text-end (current-column))
+      ;; (setq text-end (point-marker))
+      (setq text-end (current-column))
       ) ;; End save-excursion
 
     ;; Return text width
@@ -939,7 +943,6 @@
                            )
             )
       )
-
 
     ;; Return value, t if in block comment row, else nil
     (and read-prefix-pos
@@ -1146,7 +1149,7 @@
     ;; Move to line below bottom of block commente
     (while (progn
              ;; Move down one line
-             (block-comment--move-line 1)
+               (forward-line 1)
 
              ;; Check if this is body or enclose
              (setq is-body (block-comment--is-body nil nil))
