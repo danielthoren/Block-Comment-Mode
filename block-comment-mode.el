@@ -1,18 +1,12 @@
-;; FIXME: Bug when align-text is called. If text has been removed prior to
-;;        invoking this function, it is reinserted either at the beginning
-;;        of the text, or end
-
-;; FIXME: Aligning width increases width too much
-
-;; FIXME: Newline acts strange sometimes
+;; FIXME: Bug with offset from prefix. Toggle centering does not add the same
+;;        offset as insert new line
 
 ;; TODO: Hold relative position of point when aligning comment text
 
-;; TODO: Make block comment width indentation sensative, meaning that it does
-;;       not exceed a strict width limit (80 characters)
-
 ;; TODO: Make all rows extend when one row extends in width
 ;;       Make function that does this
+
+;;;;;;;;;;;;;;;;;;;;;;;; Release 2 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; TODO: Add toggling between different lengths of block comments
 
@@ -20,6 +14,9 @@
 
 ;; TODO: Add automatic row breaking when block comment is longer
 ;;       than 80 characters
+
+;; TODO: Make block comment width indentation sensative, meaning that it does
+;;       not exceed a strict width limit (80 characters)
 
 (provide 'block-comment-mode)
 
@@ -250,7 +247,7 @@
   (let* (
          (start (marker-position block-comment-centering--start-pos))
          (end (marker-position block-comment-centering--end-pos))
-         (cur (point))
+         (cur (point-marker))
          )
 
     (if (or (< cur start) (< end cur))  ;; If outside of row boundry
@@ -282,6 +279,8 @@
     (block-comment--indent-accoring-to-previous-block-row)
     (block-comment--insert-start-end-row)
     )
+  ;; Forward char since save-excursion interacts strangely with insert new line
+  (forward-char 1)
   )
 
 
@@ -786,14 +785,12 @@
   )
 
 (defun block-comment--get-widest-comment-text ()
-  (interactive)
   """  Finds the width of the widest block comment text above point and        """
   """  returns said width. The block comment text is the actual user text      """
   """  inside the block comment body.                                          """
   (let (
         (widest-width 0)
         (curr-width 0)
-        (is-body nil)
         )
 
     (save-excursion
@@ -807,7 +804,6 @@
                ;; Check if this is body or enclose
                (block-comment--is-body nil nil)
                )
-
         (setq curr-width (block-comment--get-comment-text-width))
         (message "width: %d" curr-width)
         (when (> curr-width widest-width)
@@ -849,7 +845,6 @@
   )
 
 (defun block-comment--get-comment-text-width ()
-  (interactive)
   """  Gets the width of the actual text within the block comment              """
   (let (
         (text-start 0)
@@ -859,14 +854,14 @@
     (save-excursion
       ;; Jump to first text column position
       (block-comment--jump-to-first-char-in-body)
-      ;; (setq text-start (point-marker))
       (setq text-start (current-column))
 
       ;; Jump to last text column position, no offset
       (block-comment--jump-to-last-char-in-body 0)
-      ;; (setq text-end (point-marker))
       (setq text-end (current-column))
       ) ;; End save-excursion
+
+    (message "start: %d end: %d" text-start text-end)
 
     ;; Return text width
     (- text-end text-start)
@@ -944,8 +939,8 @@
            inside-body)
 
       (setq point-in-body (and
-                           (> (point) read-prefix-pos)
-                           (< (point) read-postfix-pos)
+                           (> (point-marker) read-prefix-pos)
+                           (< (point-marker) read-postfix-pos)
                            )
             )
       )
@@ -1038,6 +1033,7 @@
   )
 
 (defun block-comment--jump-to-body-end (&optional edge-offset)
+  (interactive)
 """  Jumps to the end of block comment body, meaning the inside of the       """
 """  block comment, excluding the pre/postfix and the edge offset.           """
 """  Param 'edge-offset': Sets a custome edge offset, meaning the distance   """
@@ -1052,9 +1048,9 @@
         (line-start (line-beginning-position))
         )
     (end-of-line)
-    ;; Jump forward one since search ba starts searching on point + 1
+    ;; Jump forward one since search backward starts searching on point + 1
     (forward-char 1)
-    ;; Place point at end of prefix if a prefix is found
+    ;; Place point at start of postfix if a postfix is found
     (if (search-backward block-comment-postfix
                         line-start
                         t)
@@ -1087,12 +1083,12 @@
     (block-comment--jump-to-body-start 0)
 
     ;; Set start of block-comment body
-    (setq body-start-pos (point))
+    (setq body-start-pos (current-column))
 
-    (skip-syntax-forward " ")
+    (skip-syntax-forward " " (line-end-position))
 
     ;; Set start of user comment
-    (setq comment-start-pos (point))
+    (setq comment-start-pos (current-column))
 
     (forward-char offset)
 
@@ -1121,17 +1117,17 @@
     (block-comment--jump-to-body-end 0)
 
     ;; Set end of block-comment body
-    (setq body-end-pos (point))
+    (setq body-end-pos (current-column))
 
     ;; Jump back to character pos right after last char in body
-    (skip-syntax-backward " " block-comment-centering--start-pos)
+    (skip-syntax-backward " " (line-beginning-position))
     ;; Jump back one more to stand on last char in body
     (backward-char 1)
     ;; Jump forward by offset
     (forward-char offset)
 
     ;; Set end of user comment
-    (setq comment-end-pos (point))
+    (setq comment-end-pos (current-column))
 
     ;; Return remaining space between user comment and end of block-comment body
     (- body-end-pos comment-end-pos)
