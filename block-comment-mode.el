@@ -6,6 +6,8 @@
 
 ;; FIXME: Newline acts strange sometimes
 
+;; TODO: Hold relative position of point when aligning comment text
+
 ;; TODO: Make block comment width indentation sensative, meaning that it does
 ;;       not exceed a strict width limit (80 characters)
 
@@ -57,19 +59,21 @@
   (let (
         (remain-text-start (point-marker))
         (remain-text-end nil)
+        (remain-text nil)
         )
 
-    ;; Kill remaining text between point and end of body
+    ;; Delete remaining text between point and end of body
     (block-comment--jump-to-last-char-in-body)
     (setq remain-text-end (point-marker))
-    (kill-region remain-text-start remain-text-end)
+    (setq remain-text (delete-and-extract-region remain-text-start
+                                                 remain-text-end))
 
     (end-of-line)
     (insert "\n")
     (block-comment--indent-accoring-to-previous-block-row)
     (block-comment--insert-new-line)
-
-    (yank)
+    ;; Reinsert the deleted text
+    (insert remain-text)
     )
 
   (block-comment--add-hooks)
@@ -549,6 +553,7 @@
   (let (
         (comment-text-start nil)
         (comment-text-end nil)
+        (comment-text nil)
         )
     (if (block-comment--has-comment) ;; Align text if there is any
         (progn
@@ -556,14 +561,15 @@
           (setq comment-text-start (point-marker))
           (block-comment--jump-to-last-char-in-body)
           (setq comment-text-end (point-marker))
-          (kill-region comment-text-start comment-text-end)
+          (setq comment-text (delete-and-extract-region comment-text-start
+                                           comment-text-end))
 
           (if centering
               (block-comment--jump-to-body-center)
             (block-comment--jump-to-body-start)
             )
 
-          (yank)
+          (insert comment-text)
           )
       (if centering ;; If there is no text, move point to appropriate place
           (block-comment--jump-to-body-center)
