@@ -1,6 +1,13 @@
 ;; FIXME: Bug with offset from prefix. Toggle centering does not add the same
 ;;        offset as insert new line
 
+;; TODO: Add individual pre-enclose and post-enclose params for style, allowing
+;;       comments on the following style:
+;;       /***************************************************************
+;;        ***                                                         ***
+;;        ***************************************************************/
+
+
 ;; TODO: Hold relative position of point when aligning comment text
 
 ;; TODO: Make all rows extend when one row extends in width
@@ -592,11 +599,12 @@
                          (string-width block-comment-prefix)
                          (string-width block-comment-postfix))
                       )
+        (indentation (block-comment--get-indent-level))
         )
 
-    ;; Dont make width less than target
-    (when (< target-width block-comment-width)
-      (setq target-width block-comment-width)
+    ;; Dont make width less than target minus indentation
+    (when (< target-width (- block-comment-width indentation))
+      (setq target-width (- block-comment-width indentation))
       )
 
     ;; Disable hooks to disable centering when adjusting width
@@ -731,15 +739,14 @@
 (defun block-comment--indent-accoring-to-previous-block-row ()
   """  Indent current row in accordance with the block comment row on           """
   """  the previous line                                                        """
-  (interactive)
+  """                    return: Current indentation level                      """
 
   (let (
         (indent-level 0)
         )
 
     (block-comment--move-line -1)
-    (block-comment--jump-to-comment-start)
-    (setq indent-level (current-column))
+    (setq indent-level (block-comment--get-indent-level))
     (block-comment--move-line 1)
 
     (beginning-of-line)
@@ -747,7 +754,18 @@
                          (string-to-char " ")
                          )
             )
+
+    ;; Return indent level
+    indent-level
     )
+  )
+
+(defun block-comment--get-indent-level ()
+  """  Get the indentation level (int) of the current row                       """
+  """           return: Current indentation level                               """
+  (save-excursion
+    (block-comment--jump-to-comment-start)
+    (current-column))
   )
 
 
