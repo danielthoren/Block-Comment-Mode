@@ -1,12 +1,13 @@
 ;; FIXME: Bug with offset from prefix. Toggle centering does not add the same
 ;;        offset as insert new line
 
-;; TODO: Add individual pre-enclose and post-enclose params for style, allowing
-;;       comments on the following style:
-;;       /***************************************************************
-;;        ***                                                         ***
-;;        ***************************************************************/
+;; FIXME: Function: 'block-comment--jump-to-body-center' needs to take block
+;;        comment boundry into consideration. Now it only jumps to middle of
+;;        row without taking prefix/postfix into consideration
 
+;; FIXME: Make funciton "block-comment--align-body-width" take centering order into consideration
+
+;; TODO: Detect block comment style automatically
 
 ;; TODO: Hold relative position of point when aligning comment text
 
@@ -141,13 +142,29 @@
                                           enclose-prefix
                                           enclose-fill
                                           enclose-postfix
-                                          &optional centering-default)
-  """ Initializes variables of block-comment-mode                           """
-  """ This should be called during initialization of each mode where block- """
-  """ comment-mode shall be used. Default behaviour is c/c++ comment style  """
+                                          &optional centering-default
+                                                    enclose-prefix-bot
+                                                    enclose-fill-bot
+                                                    enclose-postfix-bot)
+  """ Initializes variables of block-comment-mode                             """
+  """ This should be called during initialization of each mode where block-   """
+  """ comment-mode shall be used. Default behaviour is c/c++ comment style    """
+  """    -> centering-default : If t, then centers by default                 """
+  """    -> enclose-prefix-bot :                                              """
+  """    -> enclose-fill-bot :                                                """
+  """    -> enclose-postfix-bot : If present, then a different set of         """
+  """                             variables are used for the bottom enclose   """
+  """                             than the top. If not, then the same         """
+  """                             settings are used for both top and bottom   """
 
   (unless centering-default
     (setq centering-default nil)
+    )
+
+  (unless enclose-prefix-bot
+    (setq enclose-prefix-bot enclose-prefix)
+    (setq enclose-fill-bot enclose-fill)
+    (setq enclose-postfix-bot enclose-postfix)
     )
 
   (set (make-local-variable 'block-comment-width) width)
@@ -156,9 +173,13 @@
   (set (make-local-variable 'block-comment-fill) fill)
   (set (make-local-variable 'block-comment-postfix) postfix)
 
-  (set (make-local-variable 'block-comment-enclose-prefix) enclose-prefix)
-  (set (make-local-variable 'block-comment-enclose-fill) enclose-fill)
-  (set (make-local-variable 'block-comment-enclose-postfix) enclose-postfix)
+  (set (make-local-variable 'block-comment-enclose-prefix-top) enclose-prefix)
+  (set (make-local-variable 'block-comment-enclose-fill-top) enclose-fill)
+  (set (make-local-variable 'block-comment-enclose-postfix-top) enclose-postfix)
+
+  (set (make-local-variable 'block-comment-enclose-prefix-bot) enclose-prefix-bot)
+  (set (make-local-variable 'block-comment-enclose-fill-bot) enclose-fill-bot)
+  (set (make-local-variable 'block-comment-enclose-postfix-bot) enclose-postfix-bot)
 
   ;; Used to remember if is centering or not
   (set (make-local-variable 'block-comment-centering-enabled) centering-default)
@@ -273,18 +294,24 @@
 (defun block-comment--insert ()
   """ Inserts a new block comment and init centering """
 
-  ;; Start block comment
-  (block-comment--insert-start-end-row)
+  ;; Insert top enclose
+  (block-comment--insert-enclose block-comment-enclose-prefix-top
+                                 block-comment-enclose-fill-top
+                                 block-comment-enclose-postfix-top)
+
   (insert "\n")
   (block-comment--indent-accoring-to-previous-block-row)
 
   (block-comment--insert-new-line)
 
+  ;; Insert bottom enclose
   (save-excursion
     (end-of-line)
     (insert "\n")
     (block-comment--indent-accoring-to-previous-block-row)
-    (block-comment--insert-start-end-row)
+    (block-comment--insert-enclose block-comment-enclose-prefix-bot
+                                   block-comment-enclose-fill-bot
+                                   block-comment-enclose-postfix-bot)
     )
   ;; Forward char since save-excursion interacts strangely with insert new line
   (forward-char 1)
@@ -292,6 +319,7 @@
 
 
 (defun block-comment--insert-new-line ()
+  (interactive)
   """    Inserts a block comment body line below point, at the             """
   """    current indentation level and initializes centering               """
 
@@ -347,7 +375,7 @@
 
   )
 
-(defun block-comment--insert-start-end-row ()
+(defun block-comment--insert-enclose (prefix fill postfix)
   """ Inserts a enclosing line at point                                      """
   """ A enclosing line is a line inserted before and                         """
   """ after the block comment body                                           """
@@ -355,18 +383,18 @@
   (let* (
          (target-width (- block-comment-width (current-column)))
          (padding-length (- target-width
-                            (+ (string-width block-comment-enclose-prefix)
-                               (string-width block-comment-enclose-postfix)
+                            (+ (string-width prefix)
+                               (string-width postfix)
                                )
                             )
                          )
          (padding (make-string padding-length
-                               (string-to-char block-comment-enclose-fill))
+                               (string-to-char fill))
                   )
          )
-    (insert block-comment-enclose-prefix)
+    (insert prefix)
     (insert padding)
-    (insert block-comment-enclose-postfix)
+    (insert postfix)
     )
   )
 
@@ -544,7 +572,7 @@
              (block-comment--move-line -1)
 
              ;; Check if this is body or enclose
-             (block-comment--is-body nil nil)
+             (block-comment--is-body nil)
              )
       (block-comment--align-text (block-comment--is-centering-row))
       )
@@ -636,37 +664,62 @@
              (block-comment--move-line -1)
 
              ;; Check if this is body or enclose
-             (setq is-body (block-comment--is-body nil nil))
-             (setq is-enclose (block-comment--is-body nil t))
+             (setq is-body (block-comment--is-body nil))
+             (setq is-enclose-top (block-comment--is-enclose-top nil))
+             (setq is-enclose-bot (block-comment--is-enclose-bot nil))
 
              ;; Exit if not in body
-             (or is-body is-enclose)
+             (or is-body is-enclose-top is-enclose-bot)
              )
-
-      (setq curr-width (block-comment--get-width))
-      (setq width-diff (- target-width curr-width))
-
-      (message "target width: %d curr width: %d width diff: %d" target-width curr-width width-diff)
 
       ;; When normal block comment line
       (when is-body
-        (block-comment--align-row-width width-diff
-                                        block-comment-fill)
+        (setq curr-width (block-comment--get-width nil
+                                                   block-comment-prefix
+                                                   block-comment-postfix))
+        (setq width-diff (- target-width curr-width))
+
+        (message "target width: %d curr width: %d width diff: %d" target-width curr-width width-diff)
+
+        (block-comment--align-body-width width-diff
+                                         block-comment-fill)
         ) ;; When is-body
 
-      ;; When enclose
-      (when is-enclose
-        (block-comment--align-row-width width-diff
-                                        block-comment-enclose-fill)
-        ) ;; When enclose
+      ;; When enclose-top
+      (when is-enclose-top
+        (setq curr-width (block-comment--get-width nil
+                                                   block-comment-enclose-prefix-top
+                                                   block-comment-enclose-postfix-top))
+        (setq width-diff (- target-width curr-width))
+
+        (message "target width: %d curr width: %d width diff: %d" target-width curr-width width-diff)
+
+        (block-comment--align-enclose-width width-diff
+                                            block-comment-enclose-fill-top)
+        ) ;; When enclose-top
+
+      ;; When enclose-bot
+      (when is-enclose-bot
+        (setq curr-width (block-comment--get-width nil
+                                                   block-comment-enclose-prefix-bot
+                                                   block-comment-enclose-postfix-bot))
+        (setq width-diff (- target-width curr-width))
+
+        (message "target width: %d curr width: %d width diff: %d" target-width curr-width width-diff)
+
+        (block-comment--align-enclose-width width-diff
+                                            block-comment-enclose-fill-bot)
+        ) ;; When enclose-bot
       ) ;; while
     )
   )
 
-(defun block-comment--align-row-width (width-diff fill)
-  """  Increases the block comment width  'width-increase' characters.         """
-  """  This is done by filling with 'fil' at the beginning and end of          """
-  """  the comment.                                                            """
+;; FIXME: Make funciton "block-comment--align-body-width" take centering order into consideration
+(defun block-comment--align-body-width (width-diff fill)
+  """  Changes the block comment width  'width-diff' characters, inserting     """
+  """  if the diff is positive and removing if it is positive.                 """
+  """  If inserting, then inserts half at beginning, and half at the end of    """
+  """  comment body. Takes the centering mode indo consideration.              """
   """  Param 'width-diff': How much the width should change, increases if      """
   """                      positive, decreases if negative                     """
   """  Param 'fill'      : The char to fill with                               """
@@ -731,6 +784,35 @@
     ) ;; End when width-diff negative
   )
 
+(defun block-comment--align-enclose-width (width-diff fill)
+  """  Changes the block comment width  'width-diff' characters, inserting     """
+  """  if the diff is positive and removing if it is positive.                 """
+  """  Param 'width-diff': How much the width should change, increases if      """
+  """                      positive, decreases if negative                     """
+  """  Param 'fill'      : The char to fill with                               """
+  """  OBS: This function assumes that the block comment body fits inside the  """
+  """  new boundry!                                                            """
+  (let* (
+         (step (abs width-diff))
+         (min-step (/ step 2))
+         (max-step (- step min-step))
+         )
+    (block-comment--jump-to-body-center)
+
+    ;; If width should increase
+    (when (> width-diff 0)
+      (insert (make-string step
+                           (string-to-char fill)
+                           )
+              )
+      ) ;; End when width-diff positive
+
+    (when (< width-diff 0)
+      (delete-forward-char min-step)
+      (delete-backward-char max-step)
+      )
+    ) ;; End when width-diff negative
+  )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 """                             Helper functions                             """
@@ -738,15 +820,22 @@
 
 (defun block-comment--indent-accoring-to-previous-block-row ()
   """  Indent current row in accordance with the block comment row on           """
-  """  the previous line                                                        """
-  """                    return: Current indentation level                      """
+  """  the previous line. Auto detects if previous line is body or enclose-top  """
+  """  -> return: Current indentation level                                     """
+  (block-comment--move-line -1)
 
   (let (
         (indent-level 0)
+        (prefix block-comment-prefix)
         )
 
-    (block-comment--move-line -1)
-    (setq indent-level (block-comment--get-indent-level))
+    ;; Detect if previous line is enclose. Not looking for bottom enclose since
+    ;; we never indent relative to thet
+    (when (block-comment--is-enclose-top)
+      (setq prefix block-comment-enclose-prefix-top)
+      )
+
+    (setq indent-level (block-comment--get-indent-level prefix))
     (block-comment--move-line 1)
 
     (beginning-of-line)
@@ -760,11 +849,15 @@
     )
   )
 
-(defun block-comment--get-indent-level ()
+(defun block-comment--get-indent-level (&optional prefix)
   """  Get the indentation level (int) of the current row                       """
+  """  Param 'prefix' : The prefix to look for                                  """
+  """                   Default: block-comment-prefix                           """
   """           return: Current indentation level                               """
+  (unless prefix (setq prefix block-comment-prefix))
+
   (save-excursion
-    (block-comment--jump-to-comment-start)
+    (block-comment--jump-to-comment-start prefix)
     (current-column))
   )
 
@@ -820,7 +913,7 @@
                (forward-line -1)
 
                ;; Check if this is body or enclose
-               (block-comment--is-body nil nil)
+               (block-comment--is-body nil)
                )
         (setq curr-width (block-comment--get-comment-text-width))
         (message "width: %d" curr-width)
@@ -836,12 +929,21 @@
     ) ;; End let
   )
 
-(defun block-comment--get-width (&optional body)
+(defun block-comment--get-width (&optional body prefix postfix)
+  (interactive)
   """  Returns the width of the block comment at point                         """
   """  Param 'body' specifies if we should take theh width of the body or the  """
   """               commment:                                                  """
   """                        t   -> Take width of body                         """
   """                        nil -> Takw width of comment                      """
+  """  Param 'prefix' : The prefix to look for                                 """
+  """                   Default: block-comment-prefix                          """
+  """  Param 'postfix' : The postfix to look for                               """
+  """                    Default: block-comment-postfix                        """
+
+  (unless prefix (setq prefix block-comment-prefix))
+  (unless postfix (setq postfix block-comment-postfix))
+
   (let (
         (comment-start 0)
         (comment-end 0)
@@ -849,12 +951,15 @@
 
     (if body
         (save-excursion
-          (setq comment-start (block-comment--jump-to-body-start))
-          (setq comment-end (block-comment--jump-to-body-end))
+          (setq comment-start (block-comment--jump-to-body-start block-comment-edge-offset
+                                                                 prefix))
+          (setq comment-end (block-comment--jump-to-body-end block-comment-edge-offset
+                                                             postfix))
           )
       (save-excursion
-        (setq comment-start (block-comment--jump-to-comment-start))
-        (setq comment-end (block-comment--jump-to-comment-end 0))
+        (setq comment-start (block-comment--jump-to-comment-start prefix))
+        (setq comment-end (block-comment--jump-to-comment-end 0
+                                                              postfix))
         )
       )
 
@@ -904,26 +1009,67 @@
     )
   )
 
-(defun block-comment--is-body (&optional inside-body enclose)
-  """ checks if the current row follows the format of a block comment body    """
-  """ Param 'inside-body' specifies if point is required to be inside of the  """
-  """                     body or not:                                        """
-  """       t   -> Point must be inside the body                              """
-  """       nil -> Point must be on the same row as body                      """
-  """ Param 'enclose' specifies if we should look for enclose, or normal body """
-  """       t   -> Look for enclose by using param 'enclose-fill'             """
-  """       nil -> Look for block body by using param 'fill'                  """
+(defun block-comment--is-body (&optional inside-body)
+  """ Checks if the current row follows the format of a block comment body    """
+  """  Param 'inside': specifies if point is required to be inside of the     """
+  """                body or not:                                             """
+  """                t   -> Point must be inside the body                     """
+  """                nil -> Point must be on the same row as body             """
+  """                Default: nil                                             """
+
+  (block-comment--is-comment block-comment-prefix
+                             block-comment-fill
+                             block-comment-postfix
+                             inside-body)
+  )
+
+(defun block-comment--is-enclose-top (&optional inside-body)
+  """ Checks if the current row follows the format of a block comment         """
+  """  top enclose                                                            """
+  """  Param 'inside': specifies if point is required to be inside of the     """
+  """                body or not:                                             """
+  """                t   -> Point must be inside the body                     """
+  """                nil -> Point must be on the same row as body             """
+  """                Default: nil                                             """
+
+  (block-comment--is-comment block-comment-enclose-prefix-top
+                             block-comment-enclose-fill-top
+                             block-comment-enclose-postfix-top
+                             inside-body)
+  )
+
+(defun block-comment--is-enclose-bot (&optional inside-body)
+  """ Checks if the current row follows the format of a block comment         """
+  """  bottom enclose                                                         """
+  """  Param 'inside': specifies if point is required to be inside of the     """
+  """                body or not:                                             """
+  """                t   -> Point must be inside the body                     """
+  """                nil -> Point must be on the same row as body             """
+  """                Default: nil                                             """
+
+  (block-comment--is-comment block-comment-enclose-prefix-bot
+                             block-comment-enclose-fill-bot
+                             block-comment-enclose-postfix-bot
+                             inside-body)
+  )
+
+(defun block-comment--is-comment (prefix fill postfix &optional inside)
+  """ checks if the current row follows the format of a block comment body     """
+  """ with the given prefix, fill and postfix.                                 """
+  """  Param 'prefix' : The prefix to look for                                 """
+  """  Param 'fill' : The fill to use                                          """
+  """  Param 'postfix' : The postfix to look for                               """
+  """  Param 'inside' specifies if point is required to be inside of the       """
+  """                body or not:                                              """
+  """       t   -> Point must be inside the body                               """
+  """       nil -> Point must be on the same row as body                       """
+  """  Param 'enclose' specifies if we should look for enclose, or normal body """
+  """       t   -> Look for enclose by using param 'enclose-fill'              """
+  """       nil -> Look for block body by using param 'fill'                   """
   (let (
         (read-prefix-pos nil)   ;; Position of current row:s prefix
         (read-postfix-pos nil)  ;; Position of current row:s postfix
         (point-in-body t)       ;; If point is inside body.
-        ;; If looking for body, use fill,
-        ;; if looking for enclose, use enclose-fill
-        (fill-type (if enclose
-                          block-comment-enclose-fill
-                        block-comment-fill
-                        )
-                      )
         )
 
     ;; Check if prefix is present on this row
@@ -931,7 +1077,7 @@
       (beginning-of-line)
       (setq read-prefix-pos
             (search-forward
-             (concat block-comment-prefix fill-type)
+             (concat prefix fill)
              (line-end-position)
              t
              )
@@ -944,7 +1090,7 @@
       (end-of-line)
       (setq read-postfix-pos
             (search-backward
-             (concat fill-type block-comment-postfix)
+             (concat fill postfix)
              (line-beginning-position)
              t)
             )
@@ -954,7 +1100,7 @@
     (when (and
            read-prefix-pos
            read-postfix-pos
-           inside-body)
+           inside)
 
       (setq point-in-body (and
                            (> (point-marker) read-prefix-pos)
@@ -976,31 +1122,39 @@
 """                         Jump to functions                                """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun block-comment--jump-to-comment-start ()
+(defun block-comment--jump-to-comment-start (&optional prefix)
   (interactive)
   """  Jump to block comment start, before the prefix.                         """
+  """  Param 'prefix' : The prefix to look for                                 """
+  """                   Default: block-comment-prefix                          """
   """  Ret: The position of the comment start                                  """
-  (block-comment--jump-to-body-start 0)
-  (backward-char (string-width block-comment-prefix))
+
+  (unless prefix (setq prefix block-comment-prefix))
+
+  (block-comment--jump-to-body-start 0 prefix)
+  (backward-char (string-width prefix))
   (point-marker)
   )
 
-(defun block-comment--jump-to-comment-end (&optional offset)
-  """  Jump to block comment end, the char directly after after the postfix.  """
-  """  Param 'offset': Offset can be used to move the position from the       """
-  """                  default position                                       """
-  """  Return: point-marker                                                   """
+(defun block-comment--jump-to-comment-end (&optional offset postfix)
+  """  Jump to block comment end, the char directly after after the postfix.    """
+  """  Param 'offset': Offset can be used to move the position from the         """
+  """                  default position                                         """
+  """                  Default: 1                                               """
+  """  Param 'postfix' : The postfix to look for                                """
+  """                    Default: block-comment-postfix                         """
+  """  Return: point-marker                                                     """
 
-  (unless offset
-    (setq offset 1)
-    )
+  (unless offset (setq offset 1))
+  (unless postfix (setq postfix block-comment-postfix))
 
-  (block-comment--jump-to-body-end 0)
-  (forward-char (- (string-width block-comment-postfix) 1))
+  (block-comment--jump-to-body-end 0 postfix)
+  (forward-char (- (string-width postfix) 1))
   (forward-char offset)
   (point-marker)
   )
 
+;; FIXME: Rewrite to take indentation into consideration
 (defun block-comment--jump-to-body-center ()
   """ Jumps to the center of the block comment body """
 
@@ -1024,13 +1178,15 @@
     )
   )
 
-(defun block-comment--jump-to-body-start (&optional edge-offset)
-  """  Jumps to the start of block comment body                                """
-  """  Param 'edge-offset': The offset from the block comment prefix,          """
-  """                       by default, this value is equal to block comment   """
-  """                       edge offset.                                       """
-  """  Ret : The position of the body start                                    """
+(defun block-comment--jump-to-body-start (&optional edge-offset prefix)
+  """  Jumps to the start of block comment body                               """
+  """  Param 'edge-offset': The offset from the block comment prefix          """
+  """                       Default: block-comment-edge-offset                """
+  """  Param 'prefix' : The prefix to look for                                """
+  """                   Default: block-comment-prefix                         """
+  """  Ret : The position of the body start                                   """
   (unless edge-offset (setq edge-offset block-comment-edge-offset))
+  (unless prefix (setq prefix block-comment-prefix))
 
   (let (
         (start-pos (point-marker))
@@ -1040,7 +1196,7 @@
     ;; Jump back one since search forward starts searching on point + 1
     (backward-char 1)
     ;; Place point at end of prefix if a prefix is found
-    (if (search-forward block-comment-prefix
+    (if (search-forward prefix
                         line-end
                         t)
         (forward-char edge-offset)
@@ -1050,16 +1206,18 @@
   (point-marker)
   )
 
-(defun block-comment--jump-to-body-end (&optional edge-offset)
+(defun block-comment--jump-to-body-end (&optional edge-offset postfix)
   (interactive)
-"""  Jumps to the end of block comment body, meaning the inside of the       """
-"""  block comment, excluding the pre/postfix and the edge offset.           """
-"""  Param 'edge-offset': Sets a custome edge offset, meaning the distance   """
-"""                       to the postfix. By default, this distance is set   """
-"""                       by the global variable:                            """
-"""                       'block-comment-edge-offset'                        """
-"""  Ret: The position of point                                              """
+  """  Jumps to the end of block comment body, meaning the inside of the        """
+  """  block comment, excluding the pre/postfix and the edge offset.            """
+  """  Param 'edge-offset': Sets a custome edge offset, meaning the distance    """
+  """                       to the postfix.                                     """
+  """                       Default: block-comment-edge-offset                  """
+  """  Param 'postfix' : The postfix to look for                                """
+  """                    Default: block-comment-postfix                         """
+  """  Ret: The position of point                                               """
   (unless edge-offset (setq edge-offset block-comment-edge-offset))
+  (unless postfix (setq postfix block-comment-postfix))
 
   (let (
         (start-pos (point-marker))
@@ -1069,9 +1227,9 @@
     ;; Jump forward one since search backward starts searching on point + 1
     (forward-char 1)
     ;; Place point at start of postfix if a postfix is found
-    (if (search-backward block-comment-postfix
-                        line-start
-                        t)
+    (if (search-backward postfix
+                         line-start
+                         t)
         (backward-char edge-offset)
       (goto-char start-pos)
       )
@@ -1153,6 +1311,7 @@
   )
 
 (defun block-comment--jump-below-comment (&optional offset)
+  (interactive)
   """ Moves point down to line right below the block comment enclose.        """
   """  Param 'offset': The offset can be used to tweak the relative          """
   """                  position that point ends on:                          """
@@ -1172,11 +1331,17 @@
                (forward-line 1)
 
              ;; Check if this is body or enclose
-             (setq is-body (block-comment--is-body nil nil))
-             (setq is-enclose (block-comment--is-body nil t))
+               (setq is-body (block-comment--is-body nil))
+               (setq is-enclose-top (block-comment--is-enclose-top nil))
+               (setq is-enclose-bot (block-comment--is-enclose-bot nil))
+
+               (message "is-body: %s is-enclose-top: %s is-enclose-bot: %s"
+                        is-body
+                        is-enclose-top
+                        is-enclose-bot)
 
              ;; Exit if not in comment
-             (or is-body is-enclose)
+             (or is-body is-enclose-top is-enclose-bot)
              )
       ) ;; End while
     ) ;; End let
