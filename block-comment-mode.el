@@ -1,9 +1,7 @@
 ;; FIXME: Bug with offset from prefix. Toggle centering does not add the same
 ;;        offset as insert new line
 
-;; FIXME: Function: 'block-comment--jump-to-body-center' needs to take block
-;;        comment boundry into consideration. Now it only jumps to middle of
-;;        row without taking prefix/postfix into consideration
+;; FIXME: implement offset between top enclose body and bottom enclose
 
 ;; FIXME: Make funciton "block-comment--align-body-width" take centering order into consideration
 
@@ -60,29 +58,35 @@
   """ Inserts a new line and moves text to the right of point down"""
   (interactive)
 
-  (block-comment--remove-hooks)
   (let (
         (remain-text-start (point-marker))
         (remain-text-end nil)
         (remain-text nil)
         )
 
-    ;; Delete remaining text between point and end of body
     (block-comment--jump-to-last-char-in-body)
     (setq remain-text-end (point-marker))
+
+    ;; Delete remaining text between point and end of body
     (setq remain-text (delete-and-extract-region remain-text-start
                                                  remain-text-end))
+
+    (block-comment--remove-hooks)
 
     (end-of-line)
     (insert "\n")
     (block-comment--indent-accoring-to-previous-block-row)
     (block-comment--insert-new-line)
-    ;; Reinsert the deleted text
-    (insert remain-text)
+
+    (block-comment--add-hooks)
+
+    ;; If there is text to the right of point, reinsert the deleted text
+    (unless (= 0 (string-match "[ \t]*$" remain-text))
+      (insert remain-text)
+      )
     )
 
-  (block-comment--add-hooks)
-  (block-comment--align-width)
+  ;; (block-comment--align-width)
   )
 
 (defun block-comment-toggle-centering ()
@@ -125,8 +129,14 @@
       (progn
         (block-comment--resume t)      ;; If t, resume with jump back condition
         (block-comment-format-comment) ;; Auto format comment
-        (block-comment--jump-to-last-char-in-body)
-        )
+        (if (block-comment--has-comment)
+            (block-comment--jump-to-last-char-in-body)
+          (progn
+            (if block-comment-centering-enabled
+                (block-comment--jump-to-body-center)
+              (block-comment--jump-to-body-start)
+            ))
+        ))
     (block-comment--insert)      ;; Else insert
     )
 
@@ -301,7 +311,6 @@
 
   (insert "\n")
   (block-comment--indent-accoring-to-previous-block-row)
-
   (block-comment--insert-new-line)
 
   ;; Insert bottom enclose
@@ -313,8 +322,6 @@
                                    block-comment-enclose-fill-bot
                                    block-comment-enclose-postfix-bot)
     )
-  ;; Forward char since save-excursion interacts strangely with insert new line
-  (forward-char 1)
   )
 
 
@@ -372,7 +379,6 @@
       (point-marker)
       )
     )
-
   )
 
 (defun block-comment--insert-enclose (prefix fill postfix)
@@ -935,7 +941,7 @@
   """  Param 'body' specifies if we should take theh width of the body or the  """
   """               commment:                                                  """
   """                        t   -> Take width of body                         """
-  """                        nil -> Takw width of comment                      """
+  """                        nil -> Take width of comment                      """
   """  Param 'prefix' : The prefix to look for                                 """
   """                   Default: block-comment-prefix                          """
   """  Param 'postfix' : The postfix to look for                               """
@@ -1154,11 +1160,12 @@
   (point-marker)
   )
 
-;; FIXME: Rewrite to take indentation into consideration
 (defun block-comment--jump-to-body-center ()
   """ Jumps to the center of the block comment body """
 
   (let (
+        (start-point 0)
+        (end-point 0)
         (line-width 0)
         (middle-point 0)
         )
@@ -1166,13 +1173,16 @@
     ;; Set line width for this row
     (save-excursion
 
-      (end-of-line)
-      (setq line-width (current-column))
-      )
+      (block-comment--jump-to-comment-start)
+      (setq start-point (current-column))
 
+      (block-comment--jump-to-comment-end)
+      (setq end-point (current-column))
+      )
+    (setq line-width (- end-point start-point))
     (setq middle-point (/ line-width 2))
 
-    (beginning-of-line)
+    (block-comment--jump-to-comment-start)
     (forward-char middle-point)
 
     )
