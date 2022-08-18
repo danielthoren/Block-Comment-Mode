@@ -359,11 +359,12 @@
 (defun block-comment--insert-line ()
   """ Inserts a new block comment body line at point with 'indent-level' """
   (let* (
-         (fill-count (- block-comment-width
-                        (+ (current-column)
-                           (string-width block-comment-prefix)
-                           (string-width block-comment-postfix)
-                           )
+         (fill-count (+ 1 (- block-comment-width
+                             (+ (current-column)
+                                (string-width block-comment-prefix)
+                                (string-width block-comment-postfix)
+                                )
+                             )
                         )
                      )
          )
@@ -387,7 +388,7 @@
   """ after the block comment body                                           """
 
   (let* (
-         (target-width (- block-comment-width (current-column)))
+         (target-width (+ 1 (- block-comment-width (current-column))))
          (padding-length (- target-width
                             (+ (string-width prefix)
                                (string-width postfix)
@@ -455,15 +456,13 @@
   (save-excursion
 
     (let* (
-           ;; Get line width after change
-           (line-width (progn
-                         (block-comment--jump-to-comment-end)
-                         (current-column)
-                         )
-                       )
+           ;; Get position of right hand side of comment
+           (comment-end-pos (progn
+                              (block-comment--jump-to-comment-end 0)
+                              (current-column)))
            ;; Get the removed width
            (removed-width (- block-comment-width
-                             line-width)
+                             comment-end-pos)
                           )
            )
 
@@ -780,6 +779,7 @@
               )
       ) ;; End when width-diff positive
 
+    ;; If width should decrease
     (when (< width-diff 0)
       (block-comment--jump-to-body-start 0)
       (delete-forward-char left)
@@ -1143,6 +1143,7 @@
   )
 
 (defun block-comment--jump-to-comment-end (&optional offset postfix)
+  (interactive)
   """  Jump to block comment end, the char directly after after the postfix.    """
   """  Param 'offset': Offset can be used to move the position from the         """
   """                  default position                                         """
