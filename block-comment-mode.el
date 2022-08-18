@@ -1,8 +1,6 @@
-;; FIXME: implement offset between top enclose body and bottom enclose
-
-;; FIXME: Make funciton "block-comment--align-body-width" take centering order into consideration
-
 ;; TODO: Detect block comment style automatically
+
+;; TODO: implement offset between top enclose body and bottom enclose
 
 ;; TODO: Hold relative position of point when aligning comment text
 
@@ -271,6 +269,52 @@
       (if block-comment-centering-enabled
           (block-comment--jump-to-body-center)
         (block-comment--jump-to-body-start)
+        )
+      )
+    )
+  )
+
+(defun block-comment--detect-body-style ()
+  (interactive)
+  """   Function auto detects what body style is used, meaning which prefix   """
+  """   and postfix that is used for the block comment body on the current    """
+  """   row. The global style is updated accordingly.                         """
+  """   OBS: It is assumed that the current row contains a block comment,     """
+  """        behaviour is undefined if it does not!                           """
+  (let* (
+         (start-post nil)
+         (end-pos nil)
+         (prefix "")
+         (postfix "")
+         )
+
+    ;; Find postfix
+    (save-excursion
+      (end-of-line)
+      (skip-syntax-backward " " (line-beginning-position))
+
+      (unless (= (point) (line-beginning-position))
+        (setq end-pos (point-marker))
+        (skip-syntax-backward "^ " (line-beginning-position))
+        (setq start-pos (point-marker))
+
+        (setq postfix (buffer-substring start-pos end-pos))
+        (message "postfix: %s" postfix)
+        )
+      )
+
+    ;; Find prefix
+    (save-excursion
+      (beginning-of-line)
+      (skip-syntax-forward " " (line-end-position))
+
+      (unless (= (point) (line-end-position))
+        (setq start-pos (point-marker))
+        (skip-syntax-forward "^ " (line-end-position))
+        (setq end-pos (point-marker))
+
+        (setq postfix (buffer-substring start-pos end-pos))
+        (message "prefix: %s" postfix)
         )
       )
     )
@@ -1383,11 +1427,6 @@
                (setq is-body (block-comment--is-body nil))
                (setq is-enclose-top (block-comment--is-enclose-top nil))
                (setq is-enclose-bot (block-comment--is-enclose-bot nil))
-
-               (message "is-body: %s is-enclose-top: %s is-enclose-bot: %s"
-                        is-body
-                        is-enclose-top
-                        is-enclose-bot)
 
              ;; Exit if not in comment
              (or is-body is-enclose-top is-enclose-bot)
