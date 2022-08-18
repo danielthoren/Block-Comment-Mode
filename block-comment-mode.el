@@ -1,6 +1,3 @@
-;; FIXME: Bug with offset from prefix. Toggle centering does not add the same
-;;        offset as insert new line
-
 ;; FIXME: implement offset between top enclose body and bottom enclose
 
 ;; FIXME: Make funciton "block-comment--align-body-width" take centering order into consideration
@@ -489,7 +486,7 @@
 
 (defun block-comment-centering--inserted-chars (left right)
   """   Handles when user inserts characters. Removes padding on right and """
-  """  left side. If user comment grows larger than target width,          """
+  """   left side. If user comment grows larger than target width,         """
   """   stops removing characters                                          """
   (let (
         (remain-space-left 0)
@@ -556,7 +553,6 @@
           ;; If there is space left, remove the right portion
           (delete-backward-char right)
           )
-
       )
     )
   )
@@ -719,7 +715,6 @@
     )
   )
 
-;; FIXME: Make funciton "block-comment--align-body-width" take centering order into consideration
 (defun block-comment--align-body-width (width-diff fill)
   """  Changes the block comment width  'width-diff' characters, inserting     """
   """  if the diff is positive and removing if it is positive.                 """
@@ -730,42 +725,45 @@
   """  Param 'fill'      : The char to fill with                               """
   """  OBS: This function assumes that the block comment body fits inside the  """
   """  new boundry!                                                            """
-  (let* (
-         (step (abs width-diff))
+
+  (if (< width-diff 0)
+      (block-comment--align-body-width-decrease width-diff fill)
+    (block-comment--align-body-width-increase width-diff fill)
+    )
+  )
+
+(defun block-comment--align-body-width-increase (increase fill)
+  """  Increases the block comment body width with 'increase' number of       """
+  """   fill characters.                                                      """
+  """  Param 'increase': How much the width should change, increases if       """
+  """                    positive, decreases if negative                      """
+  """  Param 'fill'    : The char to fill with                                """
+
+    (let* (
+         (step (abs increase))
          (min-step (/ step 2))
          (max-step (- step min-step))
 
-         (left  max-step)
-         (right min-step)
+         (left  (if (= block-comment-centering--order 0) max-step min-step))
+         (right (if (= block-comment-centering--order 0) min-step max-step))
          )
 
-    (if (block-comment--is-centering-row)
-        ;; When centering, move text to center to avoid truncating text
-        (progn
-          (block-comment--align-text t)
-          (block-comment--remove-hooks)
-          )
-      ;; When not centering, only remove from the right if possible
-      (let (
-            (remain-left (block-comment--jump-to-first-char-in-body))
-            (remain-right (block-comment--jump-to-last-char-in-body 0))
+      (if (block-comment--is-centering-row)
+          ;; Alternate between putting larger step on left/right side
+          ;; if centering is enabled
+          (progn
+            (when block-comment-centering-enabled
+              (setq block-comment-centering--order
+                    (- 1 block-comment-centering--order))
+              )
             )
-        ;; When negative width diff, try to remove as many characters as
-        ;; possible form the right to keep the formatting
-        (when (< width-diff 0)
-          (setq right (if (> remain-right step) step remain-right))
-          (setq left (- step right))
-          )
-        ;; When positive width diff, add all to the right
-        (when (> width-diff 0)
-          (setq right (+ left right))
-          (setq left 0)
-          )
         )
-      )
+      ;; When not centering, only add to the right
+      (progn
+        (setq right (+ left right))
+        (setq left 0)
+        )
 
-    ;; If width should increase
-    (when (> width-diff 0)
       (block-comment--jump-to-body-start 0)
       (insert (make-string left
                            (string-to-char fill)
@@ -777,17 +775,57 @@
                            (string-to-char fill)
                            )
               )
-      ) ;; End when width-diff positive
+      )
+    )
 
-    ;; If width should decrease
-    (when (< width-diff 0)
+(defun block-comment--align-body-width-decrease (decrease fill)
+  """  Decrease the block comment body width with 'decrease' amount           """
+  """  Param 'decrease': How much the width should change, increases if      """
+  """                    positive, decreases if negative                      """
+  """  Param 'fill'    : The char to fill with                                """
+
+  (let* (
+         (step (abs decrease))
+         (min-step (/ step 2))
+         (max-step (- step min-step))
+
+         (left  0)
+         (right 0)
+         )
+
+    (if (block-comment--is-centering-row)
+        (progn
+          ;; When centering, move text to center to avoid truncating text
+          (block-comment--align-text t)
+          ;; Take centering order into consideration
+          (setq left  (if (= block-comment-centering--order 1) max-step min-step))
+          (setq right (if (= block-comment-centering--order 1) min-step max-step))
+
+          ;; Alternate between putting larger step on left/right side
+          ;; if centering is enabled
+          (when block-comment-centering-enabled
+            (setq block-comment-centering--order
+                  (- 1 block-comment-centering--order))
+            )
+          )
+      ;; When not centering, only remove from the right if possible
+      (let (
+            (remain-left (block-comment--jump-to-first-char-in-body))
+            (remain-right (block-comment--jump-to-last-char-in-body 0))
+            )
+        ;; Try to remove as many characters as
+        ;; possible from the right side to keep the formatting
+        (setq right (if (> remain-right step) step remain-right))
+        (setq left (- step right))
+        )
+
       (block-comment--jump-to-body-start 0)
       (delete-forward-char left)
 
       (block-comment--jump-to-body-end 0)
       (delete-backward-char right)
       )
-    ) ;; End when width-diff negative
+    )
   )
 
 (defun block-comment--align-enclose-width (width-diff fill)
