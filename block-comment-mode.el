@@ -1,5 +1,3 @@
-;; TODO: Detect block comment style automatically
-
 ;; TODO: Improve detection of centering/non-centering such that
 ;;       a comment that is not left aligned, but still not centered is
 ;;       set to non-centering
@@ -61,7 +59,10 @@
         (remain-text-start (point-marker))
         (remain-text-end nil)
         (remain-text nil)
+        (target-width nil)
         )
+
+    (block-comment--remove-hooks)
 
     (block-comment--jump-to-last-char-in-body)
     (setq remain-text-end (point-marker))
@@ -69,23 +70,27 @@
     ;; Delete remaining text between point and end of body
     (setq remain-text (delete-and-extract-region remain-text-start
                                                  remain-text-end))
+    ;; Insert the same amount of fill characters that we just removed to keep
+    ;; alignment
+    (insert (make-string (string-width remain-text)
+                         (string-to-char block-comment-fill)))
 
-    (block-comment--remove-hooks)
+    ;; Get current block-comment width
+    (setq target-width (block-comment--get-width))
 
     (end-of-line)
     (insert "\n")
     (block-comment--indent-accoring-to-previous-block-row)
-    (block-comment--insert-new-line)
+    (block-comment--insert-new-line target-width)
 
     (block-comment--add-hooks)
 
     ;; If there is text to the right of point, reinsert the deleted text
-    (unless (= 0 (string-match "[ \t]*$" remain-text))
+    (unless (string=  remain-text (make-string (string-width remain-text)
+                                               (string-to-char block-comment-fill)))
       (insert remain-text)
       )
     )
-
-  ;; (block-comment--align-width)
   )
 
 (defun block-comment-toggle-centering ()
@@ -356,16 +361,20 @@
   )
 
 
-(defun block-comment--insert-new-line ()
+(defun block-comment--insert-new-line (&optional width)
   (interactive)
-  """    Inserts a block comment body line below point, at the             """
-  """    current indentation level and initializes centering               """
+  """    Inserts a block comment body line below point, at the                """
+  """    current indentation level and initializes centering                  """
+  """    Param 'width': The width of the new line,                            """
+  """                   default: block-comment-width                          """
+
+  (unless width (setq width block-comment-width))
 
   ;; init the centering mode without activating it
   (block-comment--init-variables)
 
   ;; Insert new line with same indent
-  (block-comment--insert-line)
+  (block-comment--insert-line width)
 
   ;; Set comment body start pos
   (save-excursion
@@ -386,10 +395,11 @@
     )
   )
 
-(defun block-comment--insert-line ()
+(defun block-comment--insert-line (width)
   """ Inserts a new block comment body line at point with 'indent-level' """
+  """  Param 'width' : The width of the comment line """
   (let* (
-         (fill-count (+ 1 (- block-comment-width
+         (fill-count (+ 1 (- width
                              (+ (current-column)
                                 (string-width block-comment-prefix)
                                 (string-width block-comment-postfix)
@@ -629,35 +639,21 @@
 
     ;;-------------------------- sanity check ----------------------------------
 
-    ;; If all components were found, perform a sanity check
+    ;; If all components were found, and is enclose returns true, set given
+    ;; symbols to the found values
     (when (and enclose-prefix
                enclose-fill
-               enclose-postfix)
+               enclose-postfix
+               (block-comment--is-enclose enclose-prefix
+                                          enclose-fill
+                                          enclose-postfix))
 
-      ;; FIXME: Replace with function block-comment--is-enclose
-
-      (beginning-of-line)
-      (skip-syntax-forward " " (line-end-position))
-      (forward-char (string-width enclose-prefix))
-      (setq block-start (point-marker))
-
-      (end-of-line)
-      (skip-syntax-backward " " (line-beginning-position))
-      (backward-char (string-width enclose-postfix))
-      (setq block-end (point-marker))
-
-      (setq enclose-body (buffer-substring block-start block-end))
-      (setq enclose-body-regex (concat enclose-fill "+"))
-
-      ;; If the entire enclose body contains the fill character, then set the
-      ;; global variables to the new enclose.
-      (when (string-match enclose-body-regex enclose-body)
-        (set prefix-symbol enclose-prefix)
-        (set fill-symbol enclose-fill)
-        (set postfix-symbol enclose-postfix)
-        (setq enclose-found t)
-        )
+      (set prefix-symbol enclose-prefix)
+      (set fill-symbol enclose-fill)
+      (set postfix-symbol enclose-postfix)
+      (setq enclose-found t)
       )
+
     ;; Return t if found, else nil
     enclose-found
     )
@@ -1325,6 +1321,28 @@
     )
   )
 
+(defun block-comment--has-comment ()
+  """ Checks if the block-comment-body at point contains a user comment """
+  """ If it does, then return t, else nil                               """
+  (let (
+        (body-end 0)
+        )
+    (save-excursion
+      (setq body-end (block-comment--jump-to-body-end))
+      (block-comment--jump-to-body-start)
+      (skip-syntax-forward " " body-end)
+      (not (equal (point-marker)
+                  body-end
+                  )
+           )
+      )
+    )
+  )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+"""                            Get width functions                            """
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defun block-comment--get-widest-comment-text ()
   """  Finds the width of the widest block comment text above point and        """
   """  returns said width. The block comment text is the actual user text      """
@@ -1421,23 +1439,10 @@
     ) ;; End let
   )
 
-(defun block-comment--has-comment ()
-  """ Checks if the block-comment-body at point contains a user comment """
-  """ If it does, then return t, else nil                               """
-  (let (
-        (body-end 0)
-        )
-    (save-excursion
-      (setq body-end (block-comment--jump-to-body-end))
-      (block-comment--jump-to-body-start)
-      (skip-syntax-forward " " body-end)
-      (not (equal (point-marker)
-                  body-end
-                  )
-           )
-      )
-    )
-  )
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+"""                              Is x functions                               """
+"""     -> Functions that check if current row is block comment of type x     """
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--is-enclose-top (&optional inside-body)
   (interactive)
