@@ -6,9 +6,6 @@
 
 ;; TODO: Hold relative position of point when aligning comment text
 
-;; TODO: Make all rows extend when one row extends in width
-;;       Make function that does this
-
 ;;;;;;;;;;;;;;;;;;;;;;;; Release 2 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; TODO: Add toggling between different lengths of block comments
@@ -962,16 +959,27 @@
   """   If there is no user comment in body, put point at appropriate pos     """
   (block-comment--remove-hooks)
   (let (
-        (comment-text-start nil)
-        (comment-text-end nil)
-        (comment-text nil)
+        (comment-text-start nil) ;; Start of comment text
+        (comment-text-end nil)   ;; End of comment text
+        (relative-text-position nil)   ;; Points relative position inside comment text from the left
+        (point-start-pos (point-marker))
+        (comment-text nil)       ;; The actual comment text
         )
     (if (block-comment--has-comment) ;; Align text if there is any
         (progn
-          (block-comment--jump-to-first-char-in-body)
-          (setq comment-text-start (point-marker))
           (block-comment--jump-to-last-char-in-body)
           (setq comment-text-end (point-marker))
+
+          (block-comment--jump-to-first-char-in-body)
+          (setq comment-text-start (point-marker))
+
+          ;; If point inside text body, save relative position
+          (when (and (> point-start-pos comment-text-start)
+                     (< point-start-pos comment-text-end))
+            (setq relative-text-position (- point-start-pos (point-marker)))
+            )
+
+          ;; Extract text body
           (setq comment-text (delete-and-extract-region comment-text-start
                                            comment-text-end))
 
@@ -981,6 +989,12 @@
             )
 
           (insert comment-text)
+
+          ;; Restore relative position if point was inside text to begin with
+          (when relative-text-position
+            (block-comment--jump-to-first-char-in-body)
+            (forward-char relative-text-position)
+            )
           )
       (if centering ;; If there is no text, move point to appropriate place
           (block-comment--jump-to-body-center)
