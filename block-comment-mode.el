@@ -1,6 +1,4 @@
-;; TODO: Improve detection of centering/non-centering such that
-;;       a comment that is not left aligned, but still not centered is
-;;       set to non-centering
+;; TODO: Add center to alignment functions
 
 ;; TODO: implement offset between top enclose body and bottom enclose
 
@@ -26,7 +24,7 @@
             ;; press C-g to abort comment mode
             (define-key map (kbd "C-g") 'block-comment-abort)
             (define-key map (kbd "RET") 'block-comment-newline)
-            (define-key map (kbd "M-j") 'block-comment-newline)
+            (define-key map (kbd "M-j") 'block-comment-newline-indent)
             (define-key map (kbd "C-c C-c") 'block-comment-toggle-centering)
             (define-key map (kbd "TAB") 'block-comment--align-next)
             ;; (define-key map (kbd "TAB") 'block-comment-format-comment)
@@ -46,6 +44,15 @@
   """ Turns block-comment-mode off """
   (interactive)
   (block-comment-mode 0))
+
+(defun block-comment-newline-indent ()
+  (interactive)
+  """  Acts just like normal comments with M-j, meaning that the new line     """
+  """  is indented to the same text indent as the previous line               """
+
+  (block-comment-newline)
+  (block-comment--jump-to-previous-text-column)
+  )
 
 (defun block-comment-newline ()
   """ Inserts a new line and moves text to the right of point down"""
@@ -110,7 +117,6 @@
   """  Formats the current block comment, doing the following:                 """
   """       - Aligns block comment width                                       """
   """       - Aligns block comment text                                        """
-  ;; (block-comment--align-all-text)
   (block-comment--align-width)
   )
 
@@ -1016,7 +1022,6 @@
   """                            row:s text block                              """
   """               :end -> Align with the end of body                         """
   """  -> Return: One of the symbols defined above                             """
-  (interactive)
   (let (
         (comment-text-start nil) ;; Start of comment text
         (comment-text-end nil)   ;; End of comment text
@@ -1073,6 +1078,11 @@
           (curr-elem 0)
           )
 
+      ;; (message "body-start-distance: %d" body-start-distance)
+      ;; (message "prev-indent-start-distance: %d" prev-indent-start-distance)
+      ;; (message "prev-indent-end-distance: %d" prev-indent-end-distance)
+      ;; (message "body-end-distance: %d" body-end-distance)
+
       (setq list '((body-start-distance . :start)
                    (prev-indent-start-distance . :prev-start)
                    (prev-indent-end-distance . :prev-end)
@@ -1104,26 +1114,9 @@
         (setq curr-elem 0)
         )
 
+      ;; (message "ret: %s" (cdr (nth curr-elem list)))
+
       (cdr (nth curr-elem list))
-      )
-    )
-  )
-
-(defun block-comment--align-all-text ()
-  """  Align text position of all block comment rows using auto detection      """
-  """  for centering/non-centering                                             """
-  (save-excursion
-    ;; Jump to the postamble row, the row right beneath the last comment body
-    (block-comment--jump-below-comment -1)
-
-    (while (progn
-             ;; Move up one line
-             (block-comment--move-line -1)
-
-             ;; Check if this is body or enclose
-             (block-comment--is-body nil)
-             )
-      (block-comment--align-text (block-comment--is-centering-row))
       )
     )
   )
@@ -1572,7 +1565,6 @@
   )
 
 (defun block-comment--get-width (&optional body prefix postfix)
-  (interactive)
   """  Returns the width of the block comment at point                         """
   """  Param 'body' specifies if we should take theh width of the body or the  """
   """               commment:                                                  """
@@ -1639,7 +1631,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--is-enclose-top (&optional inside-body)
-  (interactive)
   """ Checks if the current row follows the format of a block comment         """
   """  top enclose                                                            """
   """  Param 'inside': specifies if point is required to be inside of the     """
@@ -1655,7 +1646,6 @@
   )
 
 (defun block-comment--is-enclose-bot (&optional inside-body)
-  (interactive)
   """ Checks if the current row follows the format of a block comment         """
   """  bottom enclose                                                         """
   """  Param 'inside': specifies if point is required to be inside of the     """
@@ -1671,7 +1661,6 @@
   )
 
 (defun block-comment--is-body (&optional inside-body)
-  (interactive)
   """ Checks if the current row follows the format of a block comment body    """
   """  Param 'inside': specifies if point is required to be inside of the     """
   """                body or not:                                             """
@@ -1784,7 +1773,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--jump-to-previous-text-column (&optional end)
-  (interactive)
   """  Jump to the same column as the text block in the previous block        """
   """  comment row. If param end is set to t, then jump to same column        """
   """  as the end of the text block in the previous row.                      """
@@ -1819,7 +1807,6 @@
   )
 
 (defun block-comment--jump-to-comment-start (&optional prefix)
-  (interactive)
   """  Jump to block comment start, before the prefix.                         """
   """  Param 'prefix' : The prefix to look for                                 """
   """                   Default: block-comment-prefix                          """
@@ -1833,7 +1820,6 @@
   )
 
 (defun block-comment--jump-to-comment-end (&optional offset postfix)
-  (interactive)
   """  Jump to block comment end, the char directly after after the postfix.    """
   """  Param 'offset': Offset can be used to move the position from the         """
   """                  default position                                         """
@@ -1882,7 +1868,6 @@
   )
 
 (defun block-comment--jump-to-body-start (&optional edge-offset prefix)
-  (interactive)
   """  Jumps to the start of block comment body                               """
   """  Param 'edge-offset': The offset from the block comment prefix          """
   """                       Default: block-comment-edge-offset                """
@@ -1911,7 +1896,6 @@
   )
 
 (defun block-comment--jump-to-body-end (&optional edge-offset postfix)
-  (interactive)
   """  Jumps to the end of block comment body, meaning the inside of the        """
   """  block comment, excluding the pre/postfix and the edge offset.            """
   """  Param 'edge-offset': Sets a custome edge offset, meaning the distance    """
