@@ -4,11 +4,9 @@
 
 ;; TODO: implement offset between top enclose body and bottom enclose
 
-;; TODO: Hold relative position of point when aligning comment text
-
 ;;;;;;;;;;;;;;;;;;;;;;;; Release 2 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; TODO: Add toggling between different lengths of block comments
+;; Todo: Add Toggling Between Different Lengths of block comments
 
 ;; TODO: Implement automatic block comment width detection
 
@@ -27,10 +25,11 @@
     :keymap (let ((map (make-sparse-keymap)))
             ;; press C-g to abort comment mode
             (define-key map (kbd "C-g") 'block-comment-abort)
-            (define-key map (kbd "RET") 'block-comment-abort)
+            (define-key map (kbd "RET") 'block-comment-newline)
             (define-key map (kbd "M-j") 'block-comment-newline)
             (define-key map (kbd "C-c C-c") 'block-comment-toggle-centering)
-            (define-key map (kbd "TAB") 'block-comment-format-comment)
+            (define-key map (kbd "TAB") 'block-comment--align-next)
+            ;; (define-key map (kbd "TAB") 'block-comment-format-comment)
             map)
 
     (if block-comment-mode
@@ -125,39 +124,42 @@
   """ If it is, resumeprevious block comment, else start new block comment  """
   (interactive)
 
-  (setq inserted t)
+  (let (
+        (inserted t)
+        )
 
-  ;;Check if in block comment
-  ;; (if (block-comment--is-body nil)
-  (if (block-comment--detect-style)
-      (progn
-        ;; If t, resume with jump back condition
-        (block-comment--resume t)
-        ;; Auto format comment
-        (block-comment-format-comment)
-        ;; Jump to last char if there is a comment
-        (if (block-comment--has-comment)
-            (block-comment--jump-to-last-char-in-body)
-          ;; If there is not ocmment, jumpt to start/center depending on mode
-          (progn
-            (if block-comment-centering-enabled
-                (block-comment--jump-to-body-center)
-              (block-comment--jump-to-body-start)
+    ;;Check if in block comment
+    ;; (if (block-comment--is-body nil)
+    (if (block-comment--detect-style)
+        (progn
+          ;; If t, resume with jump back condition
+          (block-comment--resume t)
+          ;; Auto format comment
+          (block-comment-format-comment)
+          ;; Jump to last char if there is a comment
+          (if (block-comment--has-comment)
+              (block-comment--jump-to-last-char-in-body)
+            ;; If there is not ocmment, jumpt to start/center depending on mode
+            (progn
+              (if block-comment-centering-enabled
+                  (block-comment--jump-to-body-center)
+                (block-comment--jump-to-body-start)
+                ))
             ))
+      ;; Else try to insert new line if the current line is empty
+      (if (block-comment--current-line-empty-p)
+          (setq inserted (block-comment--insert))
+        ;; If not empty, print error message
+        (progn
+          (message "Line is not empty!")
+          (setq inserted nil)
           ))
-    ;; Else try to insert new line if the current line is empty
-    (if (block-comment--current-line-empty-p)
-        (setq inserted (block-comment--insert))
-      ;; If not empty, print error message
-      (progn
-        (message "Line is not empty!")
-        (setq inserted nil)
-        ))
-    )
+      )
 
-  ;; enter centering mode if resume succeeded
-  (when inserted
-    (block-comment-mode 1))
+    ;; enter centering mode if resume succeeded
+    (when inserted
+      (block-comment-mode 1))
+    )
   )
 
 (defun block-comment--current-line-empty-p ()
@@ -232,9 +234,6 @@
   (set (make-local-variable 'block-comment-centering--order) 1)
   (set (make-local-variable 'block-comment-centering--left-offset) 0)
   (set (make-local-variable 'block-comment-centering--right-offset) 0)
-  ;; If the diff between left/right margins for a row is smaller than this value,
-  ;; then we assume that we are in centering mode
-  (set (make-local-variable 'block-comment--centering-diff-thresh) 10)
   )
 
 (defun block-comment--shutdown ()
@@ -529,10 +528,21 @@
            enclose-top-found
            enclose-bot-found)
 
+  ;; If either enclose was not found, set both to non-existent
+  (unless (and enclose-top-found
+               enclose-bot-found)
+
+    (setq block-comment-enclose-prefix-top "")
+    (setq block-comment-enclose-fill-top "")
+    (setq block-comment-enclose-postfix-top "")
+
+    (setq block-comment-enclose-prefix-bot "")
+    (setq block-comment-enclose-fill-bot "")
+    (setq block-comment-enclose-postfix-bot "")
+    )
+
   ;; Return t if style found, else nil
-  (and body-found
-       enclose-top-found
-       enclose-bot-found)
+  (and body-found)
   )
   )
 
@@ -934,6 +944,171 @@
 """                         Text alignment functions                         """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun block-comment--align-next ()
+  (interactive)
+  """  Checks which alignment the comment text currently has and moves the    """
+  """  text block to the next alignment. The following alignments are         """
+  """  available:                                                             """
+  """             :start -> Align text to the start of the comment            """
+  """             :prev-start -> Align text with the beginning of the         """
+  """                            previous row:s text block                    """
+  """             :prev-end -> Align text with the end of the previous        """
+  """                          row:s text block                               """
+  """             :end -> Align with the end of body                          """
+  (block-comment--remove-hooks)
+  (let (
+        (next-alignment (block-comment--align-get-next)) ;; Next alignment pos
+        (comment-text-start nil) ;; Start of comment text
+        (comment-text-end nil)   ;; End of comment text
+        (relative-text-position nil)   ;; Points relative position inside comment text from the left
+        (point-start-pos (point-marker))
+        (comment-text nil)       ;; The actual comment text
+        )
+
+    (when (block-comment--has-comment) ;; Align text if there is any
+      (block-comment--jump-to-last-char-in-body)
+      (setq comment-text-end (point-marker))
+
+      (block-comment--jump-to-first-char-in-body)
+      (setq comment-text-start (point-marker))
+
+      ;; If point inside text body, save relative position
+      (when (and (> point-start-pos comment-text-start)
+                 (< point-start-pos comment-text-end))
+        (setq relative-text-position (- point-start-pos (point-marker)))
+        )
+
+      ;; Extract text body
+      (setq comment-text (delete-and-extract-region comment-text-start
+                                                    comment-text-end))
+      )
+
+    (if (equal :start next-alignment)
+        (block-comment--jump-to-body-start)
+      (if (equal :prev-start next-alignment)
+          (block-comment--jump-to-previous-text-column)
+        (if (equal :prev-end next-alignment)
+            (block-comment--jump-to-previous-text-column t)
+          (if (equal :end next-alignment)
+                (block-comment--jump-to-body-end)
+            ))))
+
+    (when comment-text
+      (insert comment-text)
+
+      ;; Restore relative position if point was inside text to begin with
+      (when relative-text-position
+        (block-comment--jump-to-first-char-in-body)
+        (forward-char relative-text-position)
+        )
+      )
+    )
+  )
+
+(defun block-comment--align-get-next ()
+  """  Checks the current alignment of the comment body text and retuns the    """
+  """  next alignment, taking positioning into consideration. The following    """
+  """  alignments are available:                                               """
+  """               :start -> Align text to the start of the comment           """
+  """               :prev-start -> Align text with the beginning of the        """
+  """                              previous row:s text block                   """
+  """               :prev-end -> Align text with the end of the previous       """
+  """                            row:s text block                              """
+  """               :end -> Align with the end of body                         """
+  """  -> Return: One of the symbols defined above                             """
+  (interactive)
+  (let (
+        (comment-text-start nil) ;; Start of comment text
+        (comment-text-end nil)   ;; End of comment text
+        (body-start nil)         ;; The body start position
+        (prev-indent-start 0)    ;; The first char position of the text in the previous block comment
+        (prev-indent-end 0)      ;; The last char position of the text in the previous block comment
+        (body-end nil)           ;; Body end position
+        )
+
+    ;; Find text boundry if there is text
+    (if (block-comment--has-comment)
+        (progn
+          (save-excursion
+            (block-comment--jump-to-last-char-in-body)
+            (setq comment-text-end (current-column))
+
+            (block-comment--jump-to-first-char-in-body)
+            (setq comment-text-start (current-column))
+            ))
+      ;; If no text exist, use current position
+      (progn)
+      (setq comment-text-start (current-column))
+      (setq comment-text-end (current-column))
+      )
+
+    ;; Find internal indent of previous row
+    (save-excursion
+      (forward-line -1)
+      ;; only get indent if previous row has block comment body
+      (when (block-comment--is-body)
+        (block-comment--jump-to-first-char-in-body)
+        (setq prev-indent-start (current-column))
+
+        (block-comment--jump-to-last-char-in-body)
+        (setq prev-indent-end (current-column))
+        ))
+
+    ;; Find body start/center/end positions
+    (save-excursion
+      (block-comment--jump-to-body-start)
+      (setq body-start (current-column))
+
+      (block-comment--jump-to-body-end)
+      (setq body-end (current-column))
+      )
+
+    (let (
+          (body-start-distance (- body-start comment-text-start))
+          (prev-indent-start-distance (- prev-indent-start comment-text-start))
+          (prev-indent-end-distance (- prev-indent-end comment-text-start))
+          (body-end-distance (- body-end comment-text-start))
+
+          (list nil)
+          (curr-elem 0)
+          )
+
+      (setq list '((body-start-distance . :start)
+                   (prev-indent-start-distance . :prev-start)
+                   (prev-indent-end-distance . :prev-end)
+                   (body-end-distance . :end)))
+
+      ;; Sort by distance
+      (setq list (sort list
+                       (lambda (a b)
+                         (< (symbol-value (car a)) (symbol-value (car b))))))
+
+      ;; Iterate until first distance larger than 0 is found, or until the
+      ;; end of the list
+      (while (and (< curr-elem (length list))
+                  (>= 0 (symbol-value (car (nth curr-elem list)))))
+
+        (setq curr-elem (+ curr-elem 1))
+        )
+
+      ;; If curr elem is end alignment, check if we should wrap around.
+      ;; When text already is end-aligned, wrap around to start aligned
+      (when (and (= curr-elem (- (length list) 1))
+                 (>= comment-text-end body-end))
+        (setq curr-elem 0)
+        )
+
+      ;; If no text on row, when reaching end position the curr elem will be
+      ;; nil. Wrap around fixed here
+      (unless (nth curr-elem list)
+        (setq curr-elem 0)
+        )
+
+      (cdr (nth curr-elem list))
+      )
+    )
+  )
+
 (defun block-comment--align-all-text ()
   """  Align text position of all block comment rows using auto detection      """
   """  for centering/non-centering                                             """
@@ -1302,11 +1477,16 @@
   )
 
 
-(defun block-comment--is-centering-row ()
-  """  Checks if the current block comment row is centering or non-centering.  """
-  """  If the left margin is larger than (edge-offset + 1) and the diff        """
-  """  between the margins is less than centering-diff-thresh,                 """
-  """  then is centering                                                       """
+(defun block-comment--is-centering-row (&optional tolerance)
+  """  Checks if the current block comment row is centering or non-centering.    """
+  """  If the left margin is larger than (edge-offset + 1) and the diff          """
+  """  between the margins is less than tolerance,                               """
+  """  then is centering                                                         """
+  """  Param 'tolerance': How much off center the text is allowed to be          """
+  """                     -> Default = 2                                         """
+  """  -> Return: t if text is centered, else nil                                """
+  (unless tolerance (setq tolerance 2))
+
   (save-excursion
   (let (
         (begin-width (block-comment--jump-to-first-char-in-body))
@@ -1315,7 +1495,7 @@
     ;; If diff between begin/end width is smaller than x, then assume
     ;; that we are in centering mode
     (and (> begin-width (+ block-comment-edge-offset 1))
-         (> block-comment--centering-diff-thresh
+         (> tolerance
             (abs (- begin-width end-width)))
          )
     )
@@ -1603,6 +1783,41 @@
 """                         Jump to functions                                """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun block-comment--jump-to-previous-text-column (&optional end)
+  (interactive)
+  """  Jump to the same column as the text block in the previous block        """
+  """  comment row. If param end is set to t, then jump to same column        """
+  """  as the end of the text block in the previous row.                      """
+  """    Param 'end': If t, jump to same column as end of text block in       """
+  """                 previous row, else the start                            """
+
+  (let* (
+         (prev-block-start nil)
+         (prev-comment-column nil)
+         (prev-indent nil)
+         )
+
+    ;; Get previous text indent
+    (save-excursion
+      (forward-line -1)
+      (block-comment--jump-to-comment-start)
+      (setq prev-block-start (current-column))
+
+      (if end
+          (block-comment--jump-to-last-char-in-body)
+        (block-comment--jump-to-first-char-in-body))
+
+      (setq prev-comment-column (current-column))
+
+      (setq prev-indent (- prev-comment-column prev-block-start))
+      )
+
+    ;; Move to same position on current row
+    (block-comment--jump-to-comment-start)
+    (forward-char prev-indent)
+    )
+  )
+
 (defun block-comment--jump-to-comment-start (&optional prefix)
   (interactive)
   """  Jump to block comment start, before the prefix.                         """
@@ -1637,7 +1852,8 @@
   )
 
 (defun block-comment--jump-to-body-center ()
-  """ Jumps to the center of the block comment body """
+  """  Jumps to the center of the block comment body and returns the end      """
+  """  final column position                                                  """
 
   (let (
         (start-point 0)
@@ -1661,6 +1877,7 @@
     (block-comment--jump-to-comment-start)
     (forward-char middle-point)
 
+    (current-column)
     )
   )
 
