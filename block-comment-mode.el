@@ -1012,9 +1012,11 @@
                   (block-comment--jump-to-body-center)
                   ;; If centering mode is not enabled, and there is text
                   ;; jump back to get the text centered
-                  (unless (or block-comment-centering-enabled
-                              comment-text)
-                    (backward-char (/ (string-width comment-text) 2))))
+                  ;; (unless block-comment-centering-enabled
+                  ;;   (when comment-text
+                  ;;     (backward-char (floor (string-width comment-text) 2))
+                  ;; )))
+                  )
             )))))
 
     (when comment-text
@@ -1047,6 +1049,7 @@
         (comment-text-end nil)   ;; End of comment text
         (body-start nil)         ;; The body start position
         (prev-indent-start 0)    ;; The first char position of the text in the previous block comment
+        (body-center 0)          ;; Body center position
         (prev-indent-end 0)      ;; The last char position of the text in the previous block comment
         (body-end nil)           ;; Body end position
         )
@@ -1087,34 +1090,53 @@
       (block-comment--jump-to-body-start)
       (setq body-start (current-column))
 
+      (block-comment--jump-to-body-center)
+      (setq body-center (current-column))
+
       (block-comment--jump-to-body-end)
       (setq body-end (current-column))
       )
 
-    (let (
+    (let* (
           (body-start-distance (- body-start comment-text-start))
           (prev-indent-start-distance (- prev-indent-start comment-text-start))
           (prev-indent-end-distance (- prev-indent-end comment-text-start))
           (body-end-distance (- body-end comment-text-start))
 
-          (list nil)
+          ;; The center of the comment text
+          (text-center (if (= comment-text-start comment-text-end)
+                           comment-text-start
+                         (ceiling (- comment-text-end comment-text-start)
+                                  2)))
+          ;; Distance from text center to body center
+          (body-center-distance (- body-center
+                                   (+ comment-text-start
+                                      text-center)))
+
+
+          (list '((body-start-distance . :start)
+                  (prev-indent-start-distance . :prev-start)
+                  (body-center-distance . :center)
+                  (prev-indent-end-distance . :prev-end)
+                  (body-end-distance . :end)))
+
           (curr-elem 0)
           )
 
       (message "start: %d" body-start-distance)
       (message "prev-start: %d" prev-indent-start-distance)
+      (message "center: %d" body-center-distance)
       (message "prev-end: %d" prev-indent-end-distance)
       (message "end: %d" body-end-distance)
 
-      (setq list '((body-start-distance . :start)
-                   (prev-indent-start-distance . :prev-start)
-                   (prev-indent-end-distance . :prev-end)
-                   (body-end-distance . :end)))
+      (message "list: %s" list)
 
       ;; Sort by distance
       (setq list (sort list
                        (lambda (a b)
                          (< (symbol-value (car a)) (symbol-value (car b))))))
+
+      (message "len: %d list: %s" (length list) list)
 
       ;; Iterate until first distance larger than 0 is found, or until the
       ;; end of the list
