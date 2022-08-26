@@ -1,5 +1,3 @@
-;; TODO: Add center to alignment functions
-
 ;; TODO: implement offset between top enclose body and bottom enclose
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Release 2 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -859,8 +857,7 @@
                               (current-column)))
            ;; Get the removed width
            (removed-width (- block-comment-width
-                             comment-end-pos)
-                          )
+                             comment-end-pos))
            )
 
       (while (> removed-width 0)
@@ -879,6 +876,10 @@
         (when centering
           (setq curr-side (- 1 curr-side))
           )
+        )
+
+      (when (< removed-width 0)
+        (block-comment--align-width)
         )
       )
     )
@@ -949,6 +950,8 @@
                     )
             ;; Update end of block comment to avoid aborting block comment mode
             (setq block-comment-centering--end-pos (point-marker))
+            ;; Align width so that all rows follow
+            (block-comment--align-width)
             )
           ;; If there is space left, remove the right portion
           (delete-backward-char right)
@@ -1008,13 +1011,7 @@
           (if (equal :end next-alignment)
               (block-comment--jump-to-body-end)
             (if (equal :center next-alignment)
-                (progn
                   (block-comment--jump-to-body-center)
-                  ;; If centering mode is not enabled, and there is text
-                  ;; jump back to get the text centered
-                  (unless (or block-comment-centering-enabled
-                              comment-text)
-                    (backward-char (/ (string-width comment-text) 2))))
             )))))
 
     (when comment-text
@@ -1047,6 +1044,7 @@
         (comment-text-end nil)   ;; End of comment text
         (body-start nil)         ;; The body start position
         (prev-indent-start 0)    ;; The first char position of the text in the previous block comment
+        (body-center 0)          ;; Body center position
         (prev-indent-end 0)      ;; The last char position of the text in the previous block comment
         (body-end nil)           ;; Body end position
         )
@@ -1087,29 +1085,38 @@
       (block-comment--jump-to-body-start)
       (setq body-start (current-column))
 
+      (block-comment--jump-to-body-center)
+      (setq body-center (current-column))
+
       (block-comment--jump-to-body-end)
       (setq body-end (current-column))
       )
 
-    (let (
+    (let* (
           (body-start-distance (- body-start comment-text-start))
           (prev-indent-start-distance (- prev-indent-start comment-text-start))
           (prev-indent-end-distance (- prev-indent-end comment-text-start))
           (body-end-distance (- body-end comment-text-start))
 
-          (list nil)
+          ;; The center of the comment text
+          (text-center (if (= comment-text-start comment-text-end)
+                           comment-text-start
+                         (ceiling (- comment-text-end comment-text-start)
+                                  2)))
+          ;; Distance from text center to body center
+          (body-center-distance (- body-center
+                                   (+ comment-text-start
+                                      text-center)))
+
+
+          (list '((body-start-distance . :start)
+                  (body-center-distance . :center)
+                  (prev-indent-start-distance . :prev-start)
+                  (prev-indent-end-distance . :prev-end)
+                  (body-end-distance . :end)))
+
           (curr-elem 0)
           )
-
-      (message "start: %d" body-start-distance)
-      (message "prev-start: %d" prev-indent-start-distance)
-      (message "prev-end: %d" prev-indent-end-distance)
-      (message "end: %d" body-end-distance)
-
-      (setq list '((body-start-distance . :start)
-                   (prev-indent-start-distance . :prev-start)
-                   (prev-indent-end-distance . :prev-end)
-                   (body-end-distance . :end)))
 
       ;; Sort by distance
       (setq list (sort list
@@ -1123,9 +1130,6 @@
 
         (setq curr-elem (+ curr-elem 1))
         )
-
-      (message "curr-elem: %d" curr-elem)
-      (message "elem: %s" (nth curr-elem list))
 
       ;; If curr elem is end alignment, check if we should wrap around.
       ;; When text already is end-aligned, wrap around to start aligned
@@ -1831,6 +1835,7 @@
   )
 
 (defun block-comment--jump-to-body-center ()
+  (interactive)
   """  Jumps to the center of the block comment body and returns the end      """
   """  final column position                                                  """
 
