@@ -1116,7 +1116,6 @@
                                    (+ comment-text-start
                                       text-center)))
 
-
           (list '((body-start-distance . :start)
                   (body-center-distance . :center)
                   (prev-indent-start-distance . :prev-start)
