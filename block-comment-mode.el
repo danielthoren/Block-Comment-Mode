@@ -2,6 +2,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Release 2 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; TODO: Move to lexical binding
+
 ;; Todo: Add Toggling Between Different Lengths of block comments
 
 ;; TODO: Implement automatic block comment width detection
@@ -53,7 +55,7 @@
         )
     (block-comment-newline)
     (when has-prev-comment
-        (block-comment--jump-to-previous-text-column)
+        (block-comment--align :prev-start)
       )
     )
   )
@@ -98,6 +100,7 @@
     ;; If there is text to the right of point, reinsert the deleted text
     (when remain-text
       (insert remain-text)
+      (block-comment--jump-to-first-char-in-body)
       )
     )
   )
@@ -265,6 +268,7 @@
   (set (make-local-variable 'block-comment-centering--order) 1)
   (set (make-local-variable 'block-comment-centering--left-offset) 0)
   (set (make-local-variable 'block-comment-centering--right-offset) 0)
+  (set (make-local-variable 'block-comment-has-hooks) nil)
   )
 
 (defun block-comment--shutdown ()
@@ -279,6 +283,9 @@
         (delete #'block-comment-centering--cursor-moved post-command-hook))
   (setq after-change-functions
         (delete #'block-comment-centering--edit after-change-functions))
+
+  ;; Keep track of hook status
+  (setq block-comment-has-hooks nil)
   )
 
 (defun block-comment--add-hooks ()
@@ -290,6 +297,9 @@
 
   ;; Add a hook that is called everytime the buffer is modified
   (add-to-list 'after-change-functions #'block-comment-centering--edit)
+
+  ;; Keep track of hook status
+  (setq block-comment-has-hooks t)
   )
 
 (defun block-comment--resume (&optional jump-back)
@@ -979,9 +989,10 @@
   (let (
         (comment-text-start nil) ;; Start of comment text
         (comment-text-end nil)   ;; End of comment text
-        (relative-text-position nil)   ;; Points relative position inside comment text from the left
         (point-start-pos (point-marker))
-        (comment-text nil)       ;; The actual comment text
+
+        (relative-text-position 0)   ;; Points relative position inside comment text from the left
+        (comment-text nil)
         )
 
     (when (block-comment--has-comment) ;; Align text if there is any
@@ -1011,20 +1022,17 @@
           (if (equal :end next-alignment)
               (block-comment--jump-to-body-end)
             (if (equal :center next-alignment)
-                  (block-comment--jump-to-body-center)
-            )))))
+                (block-comment--jump-to-body-center)
+              )))))
 
     (when comment-text
       (insert comment-text)
 
-      ;; Restore relative position if point was inside text to begin with
-      (when relative-text-position
-        (block-comment--jump-to-first-char-in-body)
-        (forward-char relative-text-position)
-        )
+      ;; Restore relative position
+      (block-comment--jump-to-first-char-in-body)
+      (forward-char relative-text-position)
       )
     )
-
   (block-comment--add-hooks)
   )
 
