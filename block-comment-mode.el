@@ -116,11 +116,9 @@
       (progn
         (setq block-comment-centering-enabled nil) ;; If enabled , disable
         (setq block-comment-centering--order 1) ;; Set order to right side (end of comment)
-        (block-comment--align :start)
         )
     (progn
       (setq block-comment-centering-enabled t)     ;; If disabled, enabled
-      (block-comment--align :center)
       )
     )
   )
@@ -1000,8 +998,10 @@
         (comment-text-end nil)   ;; End of comment text
         (point-start-pos (point-marker))
 
-        (relative-text-position 0)   ;; Points relative position inside comment text from the left
+        (relative-text-position nil)   ;; Points relative position inside comment text from the left
         (comment-text nil)
+        (comment-text-width nil)
+        (remain-fill nil)
         )
 
     (when (block-comment--has-comment) ;; Align text if there is any
@@ -1011,11 +1011,8 @@
       (block-comment--jump-to-first-char-in-body)
       (setq comment-text-start (point-marker))
 
-      ;; If point inside text body, save relative position
-      (when (and (> point-start-pos comment-text-start)
-                 (< point-start-pos comment-text-end))
-        (setq relative-text-position (- point-start-pos (point-marker)))
-        )
+      ;; Save relative position
+      (setq relative-text-position (- point-start-pos (point-marker)))
 
       ;; Extract text body
       (setq comment-text (delete-and-extract-region comment-text-start
@@ -1037,7 +1034,31 @@
     (when comment-text
       (insert comment-text)
 
-      ;; Restore relative position
+      ;; Restore relative position if there is any
+      (when relative-text-position
+
+        ;; Make sure the relative text position does not put point
+        ;; outside of the block comment. If it does, change the position
+        (if (> relative-text-position 0)
+            (progn ;; Position positive (to the right
+              (setq comment-text-width (string-width comment-text))
+              (setq remain-fill (- (+ (block-comment--jump-to-last-char-in-body)
+                                      comment-text-width)
+                                   block-comment-edge-offset))
+              ;; If there is not enough space left, reduce relative position
+              (when (> relative-text-position remain-fill)
+                (setq relative-text-position remain-fill))
+              )
+          (progn ;; Position negative (to the left)
+            (setq remain-fill (- (block-comment--jump-to-first-char-in-body)
+                                 block-comment-edge-offset))
+            ;; If there is not enough space left, reduce relative position
+            (when (> (abs relative-text-position) remain-fill)
+              (setq relative-text-position remain-fill))
+            )
+          )
+        )
+
       (block-comment--jump-to-first-char-in-body)
       (forward-char relative-text-position)
       )
