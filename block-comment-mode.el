@@ -80,7 +80,8 @@
     ;; Get current block-comment width
     (setq target-width (block-comment--get-width))
 
-    (when (block-comment--has-comment)
+    (when (and (block-comment--has-comment)
+               (not (block-comment--is-point-right-of-comment)))
       (block-comment--jump-to-last-char-in-body)
       (setq remain-text-end (point-marker))
 
@@ -1521,6 +1522,22 @@
             (abs (- begin-width end-width)))
          )
     )
+    )
+  )
+
+(defun block-comment--is-point-right-of-comment ()
+  """ Returns t if current point if right of block comment text               """
+  (save-excursion
+    (let (
+          (current-pos (current-column))
+          (text-end (progn
+                      (block-comment--jump-to-last-char-in-body)
+                      (current-column)
+                    ))
+          )
+      (message "current pos: %s text end: %s res: %s" current-pos text-end (> current-pos text-end))
+      (>= current-pos text-end)
+      )
     )
   )
 
