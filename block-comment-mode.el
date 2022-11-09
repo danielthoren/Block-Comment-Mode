@@ -1,5 +1,9 @@
 ;; TODO: implement offset between top enclose body and bottom enclose
 
+;; TODO: Fix problems with block comments in elisp mode
+
+;; TODO: Test extensively, then tag for release 1
+
 ;;;;;;;;;;;;;;;;;;;;;;;; Release 2 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; TODO: Move to lexical binding
@@ -177,7 +181,7 @@
           ))
       )
 
-    ;; enter centering mode if resume succeeded
+    ;; enter block comment mode if resume succeeded
     (when inserted
       (block-comment-mode 1))
     )
@@ -365,6 +369,11 @@
 
   ;; Reset style parameters if they are incomplete
   (block-comment--reset-style-if-incomplete)
+
+  ;; If at the top of the buffer, insert new line before inserting
+  ;; block comment to avoid truncating the comment
+  (if (= (line-number-at-pos) 1)
+      (newline))
 
   ;; Only insert comment if there is enough horizontal room
   (if (> block-comment-width (current-column))
