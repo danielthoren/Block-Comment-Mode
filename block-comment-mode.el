@@ -1,5 +1,4 @@
-;; FIXME: BUG: When pressing backspace in empty block comment, cursor does not
-;;             move to the left
+;; FIXME: BUG: Centering mode broken. Look at FIXME in code form ore information
 
 ;; FIXME: BUG in elisp: When row should extend, the block comment breaks
 
@@ -10,6 +9,9 @@
 ;; TODO: Test extensively, then tag for release 1
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Release 2 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO: Refacture get-width function. Currently used for both body and
+;;       pre/post amble when it only supports body
 
 ;; TODO: Adhere to GNU coding convention:
 ;;       https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
@@ -37,7 +39,6 @@
             (define-key map (kbd "M-j") 'block-comment-newline-indent)
             (define-key map (kbd "C-c C-c") 'block-comment-toggle-centering)
             (define-key map (kbd "TAB") 'block-comment-align-next)
-            ;; (define-key map (kbd "TAB") 'block-comment-format-comment)
             map)
 
     (if block-comment-mode
@@ -130,14 +131,6 @@
     )
   )
 
-(defun block-comment-format-comment ()
-  (interactive)
-  """  Formats the current block comment, doing the following:                 """
-  """       - Aligns block comment width                                       """
-  """       - Aligns block comment text                                        """
-  (block-comment--align-width)
-  )
-
 (defun block-comment-align-next ()
   (interactive)
   """  Moves the block comment text to the next alignment                     """
@@ -165,7 +158,7 @@
           ;; If t, resume with jump back condition
           (block-comment--resume t)
           ;; Auto format comment
-          (block-comment-format-comment)
+          (block-comment--align-width)
           ;; Jump to last char if there is a comment
           (if (block-comment--has-comment)
               (block-comment--jump-to-last-char-in-body)
@@ -832,37 +825,45 @@
   """   inserted/removed characters. It checks if the user removed or added  """
   """   characters, then decides which side of the blockc omment should be   """
   """   affected. The rest of the work is delegated                          """
-  (let* (
-         (step (- (- end begin) length))
-         (min-step (/ step 2))
-         (max-step (- step min-step))
+    (let* (
+           (step (- (- end begin) length))
+           (min-step (/ step 2))
+           (max-step (- step min-step))
 
-         (left  (if (= block-comment-centering--order 0) max-step min-step))
-         (right (if (= block-comment-centering--order 0) min-step max-step))
-         )
+           (left  (if (= block-comment-centering--order 0) max-step min-step))
+           (right (if (= block-comment-centering--order 0) min-step max-step))
+           )
 
-    (if (< step 0)
-        (block-comment-centering--removed-chars block-comment-centering--order
-                                                block-comment-centering-enabled)
-      (progn
-        ;; If centering is not enabled, only remove from right side
-        ;; of user comment
-        (unless block-comment-centering-enabled
-          (setq left 0)
-          (setq right step)
-          )
-        (block-comment-centering--inserted-chars left right))
+      (if (< step 0)
+          (block-comment-centering--removed-chars block-comment-centering--order
+                                                  block-comment-centering-enabled)
+        (progn
+          ;; Dont do anything if inserted character is of fill type
+
+          ;; FIXME: when using this, the width alignment will not run when
+          ;;        removing chars due to a error in get-width function
+          ;; (when (equal block-comment-fill (buffer-substring-no-properties begin end))
+
+          ;; If centering is not enabled, only remove from right side
+          ;; of user comment
+          (unless block-comment-centering-enabled
+            (setq left 0)
+            (setq right step)
+            )
+          (block-comment-centering--inserted-chars left right))
+          ;;)
+        )
+
+      ;; Alternate between putting larger step on left/right side
+      ;; if centering is enabled
+      (when block-comment-centering-enabled
+        (setq block-comment-centering--order
+              (- 1 block-comment-centering--order))
+        )
       )
-
-    ;; Alternate between putting larger step on left/right side
-    ;; if centering is enabled
-    (when block-comment-centering-enabled
-      (setq block-comment-centering--order
-            (- 1 block-comment-centering--order))
-      )
-    )
 
   ;; Re-align point if it is outside of boundry
+  (block-comment--align-width)
   (block-comment--align-point)
   )
 
@@ -902,10 +903,6 @@
         (when centering
           (setq curr-side (- 1 curr-side))
           )
-        )
-
-      (when (< removed-width 0)
-        (block-comment--align-width)
         )
       )
     )
@@ -976,8 +973,6 @@
                     )
             ;; Update end of block comment to avoid aborting block comment mode
             (setq block-comment-centering--end-pos (point-marker))
-            ;; Align width so that all rows follow
-            (block-comment--align-width)
             )
           ;; If there is space left, remove the right portion
           (delete-backward-char right)
@@ -1204,11 +1199,17 @@
   (let* (
         (start-pos (point-marker))
         (indentation (block-comment--get-indent-level))
-        (target-width (+ (- (block-comment--get-rightmost-comment-text-column) indentation)
+        (rightmost-text-column (block-comment--get-rightmost-comment-text-column))
+        (point-column (current-column))
+        (rightmost-column (max point-column rightmost-text-column))
+
+        (target-width (+ (- rightmost-column indentation)
                          block-comment-edge-offset
                          (string-width block-comment-prefix))
                       )
         )
+
+    (message "rightmost: %d point: %d target-width: %d" rightmost-text-column point-column target-width)
 
     ;; Dont make width less than target minus indentation
     (when (< target-width (- block-comment-width indentation))
@@ -1222,10 +1223,10 @@
       (block-comment--jump-to-last-comment-row 1)
       (block-comment--adjust-rows-above-to-target-width target-width)
       )
-    )
 
-  ;; Re-enable hooks
-  (block-comment--add-hooks)
+    ;; Re-enable hooks
+    (block-comment--add-hooks)
+    )
   )
 
 (defun block-comment--adjust-rows-above-to-target-width (target-width)
@@ -1414,6 +1415,7 @@
          (min-step (/ step 2))
          (max-step (- step min-step))
          )
+    (message "enclose width diff: %d" width-diff)
     (block-comment--jump-to-body-center)
 
     ;; If width should increase
@@ -1667,11 +1669,10 @@
     ) ;; End let
   )
 
-
-
 (defun block-comment--get-width (&optional body prefix postfix)
-  """  Returns the width of the block comment at point                         """
-  """  Param 'body' specifies if we should take theh width of the body or the  """
+  (interactive)
+  """  Returns the width of the block comment row at point                     """
+  """  Param 'body' specifies if we should take the width of the body or the   """
   """               commment:                                                  """
   """                        t   -> Take width of body                         """
   """                        nil -> Take width of comment                      """
@@ -1701,7 +1702,7 @@
                                                               postfix))
         )
       )
-
+    (message "width: %d" (- comment-end comment-start))
     (- comment-end comment-start)
     )
   )
@@ -1922,6 +1923,7 @@
   )
 
 (defun block-comment--jump-to-comment-start (&optional prefix)
+  (interactive)
   """  Jump to block comment start, before the prefix.                         """
   """  Param 'prefix' : The prefix to look for                                 """
   """                   Default: block-comment-prefix                          """
@@ -1935,6 +1937,7 @@
   )
 
 (defun block-comment--jump-to-comment-end (&optional offset postfix)
+  (interactive)
   """  Jump to block comment end, the char directly after after the postfix.    """
   """  Param 'offset': Offset can be used to move the position from the         """
   """                  default position                                         """
@@ -1947,7 +1950,7 @@
   (unless postfix (setq postfix block-comment-postfix))
 
   (block-comment--jump-to-body-end 0 postfix)
-  (forward-char (- (string-width postfix) 1))
+  (forward-char (string-width postfix))
   (forward-char offset)
   (point-marker)
   )
