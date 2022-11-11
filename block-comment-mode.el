@@ -1,12 +1,23 @@
-;; TODO: implement offset between top enclose body and bottom enclose
+;; FIXME: BUG: When the row with the rightmost comment becomes empty, the
+;;             the program crashes:
+;;             /*           dddddddddddddddddddd           */
+;;             /*                                   ddddd  */
+
+;; FIXME: BUG: When pressing backspace in empty block comment, cursor does not
+;;             move to the left
+
+;; FIXME: BUG in elisp: When row should extend, the block comment breaks
 
 ;; TODO: Fix problems with block comments in elisp mode
+
+;; TODO: implement offset between top enclose body and bottom enclose
 
 ;; TODO: Test extensively, then tag for release 1
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Release 2 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; TODO: Move to lexical binding
+;; TODO: Adhere to GNU coding convention:
+;;       https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
 
 ;; Todo: Add Toggling Between Different Lengths of block comments
 
@@ -171,7 +182,7 @@
                 ))
             ))
       ;; Else try to insert new line if the current line is empty
-      (if (block-comment--current-line-empty-p)
+      (if (block-comment--is-current-line-empty)
           (setq inserted (block-comment--insert))
         ;; If not empty, print error message
         (progn
@@ -185,9 +196,6 @@
       (block-comment-mode 1))
     )
   )
-
-(defun block-comment--current-line-empty-p ()
-  (string-match-p "\\`\\s-*$" (thing-at-point 'line)))
 
 (defun block-comment--init-comment-style (
                                           width
@@ -400,7 +408,7 @@
         t
         )
     (progn
-      (message "Nog enough room to insert comment!")
+      (message "Not enough room to insert comment!")
       ;; return nil
       nil
       )
@@ -1193,14 +1201,13 @@
 
 (defun block-comment--align-width ()
 """  Aligns the width of all rows in accordance with the widest row          """
-  (let (
+  (let* (
         (start-pos (point-marker))
-        (target-width (+ (block-comment--get-widest-comment-text)
-                         (* (+ block-comment-edge-offset 1) 2)
-                         (string-width block-comment-prefix)
-                         (string-width block-comment-postfix))
-                      )
         (indentation (block-comment--get-indent-level))
+        (target-width (+ (- (block-comment--get-rightmost-comment-text-column) indentation)
+                         block-comment-edge-offset
+                         (string-width block-comment-prefix))
+                      )
         )
 
     ;; Dont make width less than target minus indentation
@@ -1431,9 +1438,9 @@
 (defun block-comment--reset-style-if-incomplete ()
   """  Resets style to default if any of the style parameters is missing      """
 
-  (message "enclose-top prefix: %s fill: %s postfix: %s" block-comment-enclose-prefix-top block-comment-enclose-fill-top block-comment-enclose-postfix-top)
-  (message "prefix: %s fill: %s postfix: %s" block-comment-prefix block-comment-fill block-comment-postfix)
-  (message "enclose-bot prefix: %s fill: %s postfix: %s" block-comment-enclose-prefix-bot block-comment-enclose-fill-bot block-comment-enclose-postfix-bot)
+  ;; (message "enclose-top prefix: %s fill: %s postfix: %s" block-comment-enclose-prefix-top block-comment-enclose-fill-top block-comment-enclose-postfix-top)
+  ;; (message "prefix: %s fill: %s postfix: %s" block-comment-prefix block-comment-fill block-comment-postfix)
+  ;; (message "enclose-bot prefix: %s fill: %s postfix: %s" block-comment-enclose-prefix-bot block-comment-enclose-fill-bot block-comment-enclose-postfix-bot)
 
   (when (or (string= block-comment-prefix "")
             (string= block-comment-fill "")
@@ -1535,7 +1542,6 @@
                       (current-column)
                     ))
           )
-      (message "current pos: %s text end: %s res: %s" current-pos text-end (> current-pos text-end))
       (>= current-pos text-end)
       )
     )
@@ -1668,10 +1674,47 @@
     ) ;; End let
   )
 
+(defun block-comment--get-rightmost-comment-text-column ()
+  """  Gets the column of the non-fill character farthest to the right in """
+  """  the current block comment.                                         """
+    (let (
+        (rightmost-column 0)
+        (curr-column 0)
+        )
+
+    (save-excursion
+      ;; Jump to the postamble row, the row right beneath the last comment body
+      (block-comment--jump-below-comment -1)
+
+      (while (progn
+               ;; Move up one line
+               (forward-line -1)
+
+               ;; Check if this is body or enclose
+               (block-comment--is-body nil)
+               )
+        (block-comment--jump-to-last-char-in-body 0)
+        (setq curr-column (current-column))
+        (when (> curr-column rightmost-column)
+          (setq rightmost-column curr-column)
+          ) ;; End when
+
+        ) ;; End while
+      ) ;; End save-excursion
+
+    ;; Return rightmost column
+    rightmost-column
+    ) ;; End let
+  )
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 """                              Is x functions                               """
 """     -> Functions that check if current row is block comment of type x     """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun block-comment--is-current-line-empty ()
+  """ Checks if current line contains any non ' ' characters                 """
+  (string-match-p "\\`\\s-*$" (thing-at-point 'line)))
 
 (defun block-comment--is-blank-line (&optional pos)
   """  Checks if line at pos/point is emtpy, returns t if so, else nil        """
