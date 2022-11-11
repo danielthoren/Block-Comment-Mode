@@ -1,8 +1,3 @@
-;; FIXME: BUG: When the row with the rightmost comment becomes empty, the
-;;             the program crashes:
-;;             /*           dddddddddddddddddddd           */
-;;             /*                                   ddddd  */
-
 ;; FIXME: BUG: When pressing backspace in empty block comment, cursor does not
 ;;             move to the left
 
@@ -540,9 +535,10 @@
           )
 
         ;; Detect style
-        (setq enclose-top-found (block-comment--detect-enclose-style 'block-comment-enclose-prefix-top
-                                                                     'block-comment-enclose-fill-top
-                                                                     'block-comment-enclose-postfix-top))
+        (setq enclose-top-found (block-comment--detect-enclose-style
+                                 'block-comment-enclose-prefix-top
+                                 'block-comment-enclose-fill-top
+                                 'block-comment-enclose-postfix-top))
         )
 
       ;;-------------------------- Detect enclose top style -----------------------
@@ -558,9 +554,10 @@
           )
 
         ;; Detect style
-        (setq enclose-bot-found (block-comment--detect-enclose-style 'block-comment-enclose-prefix-bot
-                                                                     'block-comment-enclose-fill-bot
-                                                                     'block-comment-enclose-postfix-bot))
+        (setq enclose-bot-found (block-comment--detect-enclose-style
+                                 'block-comment-enclose-prefix-bot
+                                 'block-comment-enclose-fill-bot
+                                 'block-comment-enclose-postfix-bot))
         )
 
       ;; If either enclose was not found, set both to non-existent
@@ -864,6 +861,9 @@
             (- 1 block-comment-centering--order))
       )
     )
+
+  ;; Re-align point if it is outside of boundry
+  (block-comment--align-point)
   )
 
 (defun block-comment-centering--removed-chars (curr-side centering)
@@ -1219,7 +1219,7 @@
     (block-comment--remove-hooks)
 
     (save-excursion
-      (block-comment--jump-below-comment)
+      (block-comment--jump-to-last-comment-row 1)
       (block-comment--adjust-rows-above-to-target-width target-width)
       )
     )
@@ -1264,7 +1264,7 @@
                                              block-comment-fill)
             ) ;; End is body
 
-        ;; else if
+        ;; else if: enclose-top
         (if is-enclose-top
             (progn
               (setq curr-width (block-comment--get-width nil
@@ -1276,7 +1276,7 @@
                                                   block-comment-enclose-fill-top)
               ) ;; end enclose-top
 
-          ;; else if enclose-bot
+          ;; else if: enclose-bot
           (if is-enclose-bot
               (progn
                 (setq curr-width (block-comment--get-width nil
@@ -1429,6 +1429,27 @@
       (delete-backward-char max-step)
       )
     ) ;; End when width-diff negative
+  )
+
+(defun block-comment--align-point ()
+  (interactive)
+  """  If point is outside of the comment bounds after width alignment, put  """
+  """  point inside of the bounds                                            """
+  (let (
+        (right-boundry nil)
+        (left-boundry nil)
+        (curr-pos (point-marker))
+        )
+    (save-excursion
+        (setq right-boundry (block-comment--jump-to-body-end))
+        (setq left-boundry (block-comment--jump-to-body-start))
+      )
+
+    (when (> curr-pos right-boundry)
+      (backward-char (- curr-pos right-boundry)))
+    (when (< curr-pos left-boundry)
+      (forward-char (- right-boundry curr-pos)))
+    )
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1592,28 +1613,61 @@
         )
 
     (save-excursion
-      ;; Jump to the postamble row, the row right beneath the last comment body
-      (block-comment--jump-below-comment -1)
+      ;; Jump to the last non-postfix row in the block comment
+      (block-comment--jump-to-last-comment-row 0 t)
 
       (while (progn
-               ;; Move up one line
-               (forward-line -1)
-
                ;; Check if this is body or enclose
                (block-comment--is-body nil)
                )
         (setq curr-width (block-comment--get-comment-text-width))
         (when (> curr-width widest-width)
           (setq widest-width curr-width)
-          ) ;; End when
+          )
 
-        ) ;; End while
-      ) ;; End save-excursion
+        ;; Move up one line
+        (forward-line -1)
+        )
+      )
 
     ;; Return widest width
     widest-width
     ) ;; End let
   )
+
+(defun block-comment--get-rightmost-comment-text-column ()
+  """  Gets the column of the non-fill character farthest to the right in  """
+  """  the current block comment.                                          """
+  (let (
+        (rightmost-column 0)
+        (curr-column 0)
+        )
+
+    (save-excursion
+      ;; Jump to the last non-postfix row in the block comment
+      (block-comment--jump-to-last-comment-row 0 t)
+
+      (while (progn
+               ;; Check if this is body or enclose
+               (block-comment--is-body nil)
+               )
+        (block-comment--jump-to-last-char-in-body 0)
+        (setq curr-column (current-column))
+        (when (> curr-column rightmost-column)
+          (setq rightmost-column curr-column)
+          )
+
+        ;; Move up one line
+        (forward-line -1)
+        )
+      )
+
+    ;; Return rightmost column
+    rightmost-column
+    ) ;; End let
+  )
+
+
 
 (defun block-comment--get-width (&optional body prefix postfix)
   """  Returns the width of the block comment at point                         """
@@ -1671,39 +1725,6 @@
 
     ;; Return text width
     (- text-end text-start)
-    ) ;; End let
-  )
-
-(defun block-comment--get-rightmost-comment-text-column ()
-  """  Gets the column of the non-fill character farthest to the right in """
-  """  the current block comment.                                         """
-    (let (
-        (rightmost-column 0)
-        (curr-column 0)
-        )
-
-    (save-excursion
-      ;; Jump to the postamble row, the row right beneath the last comment body
-      (block-comment--jump-below-comment -1)
-
-      (while (progn
-               ;; Move up one line
-               (forward-line -1)
-
-               ;; Check if this is body or enclose
-               (block-comment--is-body nil)
-               )
-        (block-comment--jump-to-last-char-in-body 0)
-        (setq curr-column (current-column))
-        (when (> curr-column rightmost-column)
-          (setq rightmost-column curr-column)
-          ) ;; End when
-
-        ) ;; End while
-      ) ;; End save-excursion
-
-    ;; Return rightmost column
-    rightmost-column
     ) ;; End let
   )
 
@@ -1932,10 +1953,8 @@
   )
 
 (defun block-comment--jump-to-body-center ()
-  (interactive)
   """  Jumps to the center of the block comment body and returns the end      """
   """  final column position                                                  """
-
   (let (
         (start-point 0)
         (end-point 0)
@@ -1993,7 +2012,7 @@
 (defun block-comment--jump-to-body-end (&optional edge-offset postfix)
   """  Jumps to the end of block comment body, meaning the inside of the        """
   """  block comment, excluding the pre/postfix and the edge offset.            """
-  """  Param 'edge-offset': Sets a custome edge offset, meaning the distance    """
+  """  Param 'edge-offset': Sets a custom edge offset, meaning the distance     """
   """                       to the postfix.                                     """
   """                       Default: block-comment-edge-offset                  """
   """  Param 'postfix' : The postfix to look for                                """
@@ -2013,7 +2032,7 @@
     (if (search-backward postfix
                          line-start
                          t)
-        (backward-char edge-offset)
+        (backward-char (+ edge-offset 1))
       (goto-char start-pos)
       )
     )
@@ -2093,35 +2112,43 @@
     )
   )
 
-(defun block-comment--jump-below-comment (&optional offset)
-  """ Moves point down to line right below the block comment enclose.        """
+(defun block-comment--jump-to-last-comment-row (&optional offset stop-before-postfix)
+  """ Moves point down to last block comment row.                            """
   """  Param 'offset': The offset can be used to tweak the relative          """
   """                  position that point ends on:                          """
   """                      +x -> Move point x lines further down             """
   """                      -x -> Move point x lines further up               """
-  (unless offset
-    (setq offset 0)
-    )
+  """                  Default: 0                                            """
+  """  Param 'stop-before-postfix': if t, stop on last block comment row     """
+  """                               (before postfix)                         """
+  """                   Default: nil                                         """
+  (unless offset (setq offset 0))
 
   (let (
         (is-body nil)
-        (is-enclose nil)
+        (is-enclose-top nil)
+        (is-enclose-bot nil)
         )
     ;; Move to line below bottom of block commente
     (while (progn
              ;; Move down one line
-               (forward-line 1)
+             (forward-line 1)
 
              ;; Check if this is body or enclose
-               (setq is-body (block-comment--is-body nil))
-               (setq is-enclose-top (block-comment--is-enclose-top nil))
-               (setq is-enclose-bot (block-comment--is-enclose-bot nil))
+             (setq is-body (block-comment--is-body nil))
+             (setq is-enclose-top (block-comment--is-enclose-top nil))
+             (unless stop-before-postfix
+               (setq is-enclose-bot (block-comment--is-enclose-bot nil)))
 
              ;; Exit if not in comment
              (or is-body is-enclose-top is-enclose-bot)
              )
-      ) ;; End while
-    ) ;; End let
+      )
+    )
 
+  ;; Move back up to last comment row
+  (forward-line -1)
+
+  ;; Move according to offset
   (block-comment--move-line offset)
   )
