@@ -1,5 +1,7 @@
 ;; FIXME: BUG: Centering mode broken. Look at FIXME in code form ore information
 
+;; FIXME: Bug in alignment with previous rows comment
+
 ;; FIXME: BUG in elisp: When row should extend, the block comment breaks
 
 ;; TODO: Fix problems with block comments in elisp mode
@@ -85,7 +87,7 @@
     (block-comment--remove-hooks)
 
     ;; Get current block-comment width
-    (setq target-width (block-comment--get-width))
+    (setq target-width (block-comment--get-comment-width))
 
     (when (and (block-comment--has-comment)
                (not (block-comment--is-point-right-of-comment)))
@@ -498,9 +500,6 @@
   """  enclose to the empty string ''. When body enclose is found, then         """
   """  return t, else nil                                                       """
   """   -> Return: t if body style found, else nil                              """
-
-  (interactive)
-
   (let (
         (body-found nil)
         (enclose-top-found nil)
@@ -986,7 +985,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--align (next-alignment)
-  (interactive)
   """  Checks which alignment the comment text currently has and moves the    """
   """  text block to the next alignment. The following alignments are         """
   """  available:                                                             """
@@ -1209,8 +1207,6 @@
                       )
         )
 
-    (message "rightmost: %d point: %d target-width: %d" rightmost-text-column point-column target-width)
-
     ;; Dont make width less than target minus indentation
     (when (< target-width (- block-comment-width indentation))
       (setq target-width (- block-comment-width indentation))
@@ -1253,43 +1249,25 @@
              (or is-body is-enclose-top is-enclose-bot)
              )
 
+      (setq curr-width (block-comment--get-comment-width))
+      (setq width-diff (- target-width curr-width))
+
       ;; When normal block comment line
-      (if is-body
-          (progn
-            (setq curr-width (block-comment--get-width nil
-                                                       block-comment-prefix
-                                                       block-comment-postfix))
-            (setq width-diff (- target-width curr-width))
+      (cond (is-body
+             (block-comment--align-body-width width-diff
+                                              block-comment-fill))
 
-            (block-comment--align-body-width width-diff
-                                             block-comment-fill)
-            ) ;; End is body
+            ;; else if: enclose-top
+            (is-enclose-top
+             (block-comment--align-enclose-width width-diff
+                                                 block-comment-enclose-fill-top))
 
-        ;; else if: enclose-top
-        (if is-enclose-top
-            (progn
-              (setq curr-width (block-comment--get-width nil
-                                                         block-comment-enclose-prefix-top
-                                                         block-comment-enclose-postfix-top))
-              (setq width-diff (- target-width curr-width))
-
-              (block-comment--align-enclose-width width-diff
-                                                  block-comment-enclose-fill-top)
-              ) ;; end enclose-top
-
-          ;; else if: enclose-bot
-          (if is-enclose-bot
-              (progn
-                (setq curr-width (block-comment--get-width nil
-                                                           block-comment-enclose-prefix-bot
-                                                           block-comment-enclose-postfix-bot))
-                (setq width-diff (- target-width curr-width))
-
-                (block-comment--align-enclose-width width-diff
-                                                    block-comment-enclose-fill-bot)
-                ) ;; end enclose-bot
-            ))) ;; if
-          ) ;; while
+            ;; else if: enclose-bot
+            (is-enclose-bot
+             (block-comment--align-enclose-width width-diff
+                                                 block-comment-enclose-fill-bot))
+            )
+      ) ;; end while
     )
   )
 
@@ -1415,7 +1393,6 @@
          (min-step (/ step 2))
          (max-step (- step min-step))
          )
-    (message "enclose width diff: %d" width-diff)
     (block-comment--jump-to-body-center)
 
     ;; If width should increase
@@ -1434,7 +1411,6 @@
   )
 
 (defun block-comment--align-point ()
-  (interactive)
   """  If point is outside of the comment bounds after width alignment, put  """
   """  point inside of the bounds                                            """
   (let (
@@ -1460,10 +1436,6 @@
 
 (defun block-comment--reset-style-if-incomplete ()
   """  Resets style to default if any of the style parameters is missing      """
-
-  ;; (message "enclose-top prefix: %s fill: %s postfix: %s" block-comment-enclose-prefix-top block-comment-enclose-fill-top block-comment-enclose-postfix-top)
-  ;; (message "prefix: %s fill: %s postfix: %s" block-comment-prefix block-comment-fill block-comment-postfix)
-  ;; (message "enclose-bot prefix: %s fill: %s postfix: %s" block-comment-enclose-prefix-bot block-comment-enclose-fill-bot block-comment-enclose-postfix-bot)
 
   (when (or (string= block-comment-prefix "")
             (string= block-comment-fill "")
@@ -1669,13 +1641,46 @@
     ) ;; End let
   )
 
-(defun block-comment--get-width (&optional body prefix postfix)
-  (interactive)
-  """  Returns the width of the block comment row at point                     """
-  """  Param 'body' specifies if we should take the width of the body or the   """
-  """               commment:                                                  """
-  """                        t   -> Take width of body                         """
-  """                        nil -> Take width of comment                      """
+(defun block-comment--get-comment-width ()
+  """  Returns the width of the block comment row at point, meaning the        """
+  """  entire width of the block comment, from first char of prefix, to last   """
+  """  char of postfix. This function works on both a comment row, and         """
+  """  a pre/post amble row                                                    """
+
+  (let (
+        (prefix nil)
+        (postfix nil)
+        (comment-start 0)
+        (comment-end 0)
+        )
+
+    ;; Select the current rows pre/postfix
+    (cond ((block-comment--is-body)
+           (progn
+             (setq prefix block-comment-prefix)
+             (setq postfix block-comment-postfix)))
+          ((block-comment--is-enclose-top)
+           (progn
+             (setq prefix block-comment-enclose-prefix-top)
+             (setq postfix block-comment-enclose-postfix-top)))
+          ((block-comment--is-enclose-bot)
+           (progn
+             (setq prefix block-comment-enclose-prefix-bot)
+             (setq postfix block-comment-enclose-postfix-bot)))
+          )
+
+    (save-excursion
+      (setq comment-start (block-comment--jump-to-comment-start prefix))
+      (setq comment-end (block-comment--jump-to-comment-end 0
+                                                            postfix))
+      )
+    (- comment-end comment-start)
+    )
+  )
+
+(defun block-comment--get-body-width (&optional prefix postfix)
+  """  Returns the width of the block comment body at point, meaning the       """
+  """  width between the pre/post fix                                          """
   """  Param 'prefix' : The prefix to look for                                 """
   """                   Default: block-comment-prefix                          """
   """  Param 'postfix' : The postfix to look for                               """
@@ -1689,20 +1694,12 @@
         (comment-end 0)
         )
 
-    (if body
-        (save-excursion
-          (setq comment-start (block-comment--jump-to-body-start block-comment-edge-offset
-                                                                 prefix))
-          (setq comment-end (block-comment--jump-to-body-end block-comment-edge-offset
-                                                             postfix))
-          )
-      (save-excursion
-        (setq comment-start (block-comment--jump-to-comment-start prefix))
-        (setq comment-end (block-comment--jump-to-comment-end 0
-                                                              postfix))
-        )
+    (save-excursion
+      (setq comment-start (block-comment--jump-to-body-start block-comment-edge-offset
+                                                             prefix))
+      (setq comment-end (block-comment--jump-to-body-end block-comment-edge-offset
+                                                         postfix))
       )
-    (message "width: %d" (- comment-end comment-start))
     (- comment-end comment-start)
     )
   )
@@ -1923,7 +1920,6 @@
   )
 
 (defun block-comment--jump-to-comment-start (&optional prefix)
-  (interactive)
   """  Jump to block comment start, before the prefix.                         """
   """  Param 'prefix' : The prefix to look for                                 """
   """                   Default: block-comment-prefix                          """
@@ -1931,13 +1927,13 @@
 
   (unless prefix (setq prefix block-comment-prefix))
 
+  ;; TODO: Send offset to jump-to-body-start instead of doing it manually here
   (block-comment--jump-to-body-start 0 prefix)
   (backward-char (string-width prefix))
   (point-marker)
   )
 
 (defun block-comment--jump-to-comment-end (&optional offset postfix)
-  (interactive)
   """  Jump to block comment end, the char directly after after the postfix.    """
   """  Param 'offset': Offset can be used to move the position from the         """
   """                  default position                                         """
@@ -1949,6 +1945,7 @@
   (unless offset (setq offset 1))
   (unless postfix (setq postfix block-comment-postfix))
 
+  ;; TODO: Send offset to jump-to-body-start instead of doing it manually here
   (block-comment--jump-to-body-end 0 postfix)
   (forward-char (string-width postfix))
   (forward-char offset)
