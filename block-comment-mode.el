@@ -1,8 +1,12 @@
-;; FIXME: BUG: Centering mode broken. Look at FIXME in code form ore information
-
-;; FIXME: Bug in alignment with previous rows comment
+;; FIXME: Bug in alignment with previous rows comment. After aligning
+;; once with an empty comment row above, the list in the function
+;; 'block-comment--align-get-next' decarese from 5 elements long, to 3
+;; elements. After this point, the new size of 3 is persistent, even
+;; if point moves to a new row with a non-empty comment row above.
 
 ;; FIXME: BUG in elisp: When row should extend, the block comment breaks
+
+;; FIXME: BUG: When block comment has no row above it, aligning upper most row will not work
 
 ;; TODO: Fix problems with block comments in elisp mode
 
@@ -12,8 +16,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Release 2 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; TODO: Refacture get-width function. Currently used for both body and
-;;       pre/post amble when it only supports body
+;; TODO: Split mode into multiple files
 
 ;; TODO: Adhere to GNU coding convention:
 ;;       https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
@@ -154,7 +157,6 @@
         )
 
     ;;Check if in block comment
-    ;; (if (block-comment--is-body nil)
     (if (block-comment--detect-style)
         (progn
           ;; If t, resume with jump back condition
@@ -164,7 +166,7 @@
           ;; Jump to last char if there is a comment
           (if (block-comment--has-comment)
               (block-comment--jump-to-last-char-in-body)
-            ;; If there is not ocmment, jumpt to start/center depending on mode
+            ;; If there is not comment, jumpt to start/center depending on mode
             (progn
               (if block-comment-centering-enabled
                   (block-comment--jump-to-body-center)
@@ -837,12 +839,6 @@
           (block-comment-centering--removed-chars block-comment-centering--order
                                                   block-comment-centering-enabled)
         (progn
-          ;; Dont do anything if inserted character is of fill type
-
-          ;; FIXME: when using this, the width alignment will not run when
-          ;;        removing chars due to a error in get-width function
-          ;; (when (equal block-comment-fill (buffer-substring-no-properties begin end))
-
           ;; If centering is not enabled, only remove from right side
           ;; of user comment
           (unless block-comment-centering-enabled
@@ -850,7 +846,6 @@
             (setq right step)
             )
           (block-comment-centering--inserted-chars left right))
-          ;;)
         )
 
       ;; Alternate between putting larger step on left/right side
@@ -1157,6 +1152,15 @@
           (curr-elem 0)
           )
 
+      (message "body start: %d body center: %d prev-start: %d prev-end: %d body end: %d"
+               body-start-distance
+               body-center-distance
+               prev-indent-start-distance
+               prev-indent-end-distance
+               body-end-distance)
+
+      (message "length of list: %d" (length list))
+
       ;; Sort by distance
       (setq list (sort list
                        (lambda (a b)
@@ -1164,9 +1168,13 @@
 
       ;; Iterate until first distance larger than 0 is found, or until the
       ;; end of the list
+      (message "length of list: %d" (length list))
       (while (and (< curr-elem (length list))
                   (>= 0 (symbol-value (car (nth curr-elem list)))))
 
+        (message "curr elem: %s distance: %d"
+                 (cdr (nth curr-elem list))
+                  (symbol-value (car (nth curr-elem list))))
         (setq curr-elem (+ curr-elem 1))
         )
 
@@ -1183,6 +1191,7 @@
         (setq curr-elem 0)
         )
 
+      (message "Next: %s" (cdr (nth curr-elem list)))
       (cdr (nth curr-elem list))
       )
     )
