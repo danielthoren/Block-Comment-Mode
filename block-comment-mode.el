@@ -171,7 +171,7 @@
                 (block-comment--jump-to-body-start)
                 ))
             ))
-      ;; Else try to insert new line if the current line is empty
+      ;; Else try to insert new comment if the current line is empty
       (if (block-comment--is-current-line-empty)
           (setq inserted (block-comment--insert))
         ;; If not empty, print error message
@@ -1193,6 +1193,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--align-width ()
+  (interactive)
 """  Aligns the width of all rows in accordance with the widest row          """
   (let* (
         (start-pos (point-marker))
@@ -1237,6 +1238,7 @@
 
     ;; Align all block comment rows above
     (while (progn
+
              ;; Move up one line
              (block-comment--move-line -1)
 
@@ -1754,6 +1756,15 @@
   """                t   -> Point must be inside the body                     """
   """                nil -> Point must be on the same row as body             """
   """                Default: nil                                             """
+
+  ;; Insert new line if at top of buffer
+  (when (equal (line-number-at-pos) 1)
+    (save-excursion
+      (block-comment--move-line -1)
+      (beginning-of-line)
+      (newline)
+      )
+    )
 
   (block-comment--is-enclose block-comment-enclose-prefix-top
                              block-comment-enclose-fill-top
