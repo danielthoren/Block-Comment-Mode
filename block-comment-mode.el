@@ -4,16 +4,6 @@
 ;; elements. After this point, the new size of 3 is persistent, even
 ;; if point moves to a new row with a non-empty comment row above.
 
-;; FIXME: BUG when inserting at bottom of buffer
-
-;; FIXME: Clean up jump-to-comment-start/end.
-;;        * Both use helper functions now, merge helper functions if possible and put comments on them
-;;        * Go through all uses of the functions and make sure that the correct arguments are given
-
-;; FIXME: BUG: When block comment has no row above it, aligning upper most row will not work
-
-;; TODO: Fix problems with block comments in elisp mode
-
 ;; TODO: implement offset between top enclose body and bottom enclose
 
 ;; TODO: Test extensively, then tag for release 1
@@ -386,14 +376,14 @@
                                        block-comment-enclose-fill-top
                                        block-comment-enclose-postfix-top)
 
-        (insert "\n")
+        (newline)
         (block-comment--indent-accoring-to-previous-block-row)
         (block-comment--insert-new-line)
 
         ;; Insert bottom enclose
         (save-excursion
           (end-of-line)
-          (insert "\n")
+          (newline)
           (block-comment--indent-accoring-to-previous-block-row)
           (block-comment--insert-enclose block-comment-enclose-prefix-bot
                                          block-comment-enclose-fill-bot
@@ -1256,20 +1246,16 @@
              (block-comment--move-line -1)
 
              ;; Check if this is body or enclose
-             (save-excursion
-               (setq is-body (block-comment--is-body nil))
-               (setq is-enclose-top (block-comment--is-enclose-top nil))
-               (setq is-enclose-bot (block-comment--is-enclose-bot nil))
-               )
+             (setq is-body (block-comment--is-body nil))
+             (setq is-enclose-top (block-comment--is-enclose-top nil))
+             (setq is-enclose-bot (block-comment--is-enclose-bot nil))
 
              ;; Exit if not in body
              (or is-body is-enclose-top is-enclose-bot)
              )
 
-      (save-excursion
-        (setq curr-width (block-comment--get-comment-width))
-        (setq width-diff (- target-width curr-width))
-        )
+      (setq curr-width (block-comment--get-comment-width))
+      (setq width-diff (- target-width curr-width))
 
       ;; When normal block comment line
       (save-excursion
@@ -1668,18 +1654,15 @@
   """  a pre/post amble row                                                    """
 
   (let* (
-        (prefix-postfix (block-comment--get-row-prefix-postfix))
-        (prefix (car prefix-postfix))
-        (postfix (cdr prefix-postfix))
         (comment-start 0)
         (comment-end 0)
         )
 
     (save-excursion
-      (setq comment-start (block-comment--jump-to-comment-start prefix))
-      (setq comment-end (block-comment--jump-to-comment-end 0
-                                                            postfix))
+      (setq comment-start (block-comment--jump-to-comment-start))
+      (setq comment-end (block-comment--jump-to-comment-end 0))
       )
+
     (- comment-end comment-start)
     )
   )
@@ -1764,14 +1747,14 @@
   (let (
         (match-signature nil)
         (has-body-beneath nil)
+        (start-column (current-column))
         )
+
     ;; Insert new line if at top of buffer
     (when (equal (line-number-at-pos) 1)
-      (save-excursion
-        (block-comment--move-line -1)
-        (beginning-of-line)
-        (newline)
-        )
+      (beginning-of-line)
+      (newline)
+      (forward-char start-column)
       )
 
     (setq match-signature (block-comment--is-enclose block-comment-enclose-prefix-top
@@ -1936,27 +1919,25 @@
   (let* (
          (prev-block-start nil)
          (prev-comment-column nil)
-         (prev-indent nil)
+         (prev-text-offset nil)
          )
 
-    ;; Get previous text indent
+    ;; Get previous text block offset from comment start
     (save-excursion
       (forward-line -1)
       (block-comment--jump-to-comment-start)
-      (setq prev-block-start (current-column))
+      (setq prev-block-start (current-column)))
 
       (if end
           (block-comment--jump-to-last-char-in-body)
         (block-comment--jump-to-first-char-in-body))
 
       (setq prev-comment-column (current-column))
-
-      (setq prev-indent (- prev-comment-column prev-block-start))
-      )
+      (setq prev-text-offset (- prev-comment-column prev-block-start))
 
     ;; Move to same position on current row
     (block-comment--jump-to-comment-start)
-    (forward-char prev-indent)
+    (forward-char prev-text-offset)
     )
   )
 
@@ -2072,7 +2053,7 @@
   """                   Default: block-comment-prefix                         """
   """  Ret : The position of the body start                                   """
   (unless edge-offset (setq edge-offset block-comment-edge-offset))
-  (unless prefix (setq prefix block-comment-prefix))
+  (unless prefix (setq prefix (block-comment--get-row-prefix)))
 
   (let (
         (start-pos (point-marker))
@@ -2102,7 +2083,7 @@
   """                    Default: block-comment-postfix                         """
   """  Ret: The position of point                                               """
   (unless edge-offset (setq edge-offset block-comment-edge-offset))
-  (unless postfix (setq postfix block-comment-postfix))
+  (unless postfix (setq postfix (block-comment--get-row-postfix)))
 
   (let (
         (start-pos (point-marker))
