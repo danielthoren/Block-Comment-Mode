@@ -4,6 +4,17 @@
 ;; elements. After this point, the new size of 3 is persistent, even
 ;; if point moves to a new row with a non-empty comment row above.
 
+;; FIXME: Bug in alignment with previous rows comment. If current rows
+;;        comment is wider than block comment after alignment, the
+;;        program crashes.
+
+;; FIXME: Look into why the function block-comment--is-comment is run
+;;        so many times when a character is inserted
+
+;; FIXME: Change way to find prefix, instead of searching forward, use
+;; search backward. This should enable finding prefix even when at top
+;; of buffer, or when comment is left aligned
+
 ;; TODO: implement offset between top enclose body and bottom enclose
 
 ;; TODO: Test extensively, then tag for release 1
@@ -1009,17 +1020,16 @@
                                                     comment-text-end))
       )
 
-    (if (equal :start next-alignment)
-        (block-comment--jump-to-body-start)
-      (if (equal :prev-start next-alignment)
-          (block-comment--jump-to-previous-text-column)
-        (if (equal :prev-end next-alignment)
-            (block-comment--jump-to-previous-text-column t)
-          (if (equal :end next-alignment)
-              (block-comment--jump-to-body-end)
-            (if (equal :center next-alignment)
-                (block-comment--jump-to-body-center)
-              )))))
+    (cond ((equal :start next-alignment)
+           (block-comment--jump-to-body-start))
+          ((equal :prev-start next-alignment)
+           (block-comment--jump-to-previous-text-column))
+          ((equal :prev-end next-alignment)
+           (block-comment--jump-to-previous-text-column t))
+          ((equal :end next-alignment)
+           (block-comment--jump-to-body-end))
+          ((equal :center next-alignment)
+           (block-comment--jump-to-body-center)))
 
     (when comment-text
       (insert comment-text)
@@ -1145,12 +1155,13 @@
           (curr-elem 0)
           )
 
-      (message "body start: %d body center: %d prev-start: %d prev-end: %d body end: %d"
+      (message "body start: %d body center: %d prev-start: %d prev-end: %d body end: %d proper list: %s"
                body-start-distance
                body-center-distance
                prev-indent-start-distance
                prev-indent-end-distance
-               body-end-distance)
+               body-end-distance
+               (proper-list-p list))
 
       (message "length of list: %d" (length list))
 
@@ -1853,7 +1864,13 @@
     )
   )
 
+(defun block-comment-debug-is-comment ()
+  (interactive)
+  (block-comment--is-comment block-comment-prefix block-comment-fill block-comment-postfix)
+  )
+
 (defun block-comment--is-comment (prefix fill postfix &optional inside)
+  (interactive)
   """ checks if the current row follows the format of a block comment body     """
   """ with the given prefix, fill and postfix.                                 """
   """  Param 'prefix' : The prefix to look for                                 """
@@ -1872,10 +1889,12 @@
     ;; Check if prefix is present on this row
     (save-excursion
       (beginning-of-line)
+      ;; Jump back one since search forward starts searching on point + 1
+      (forward-char (+ (string-width prefix) 2))
       (setq read-prefix-pos
-            (search-forward
+            (search-backward
              (concat prefix fill)
-             (line-end-position)
+             (line-beginning-position)
              t)))
 
     ;; Check if postfix is present on this row
@@ -1889,9 +1908,9 @@
 
     ;; If inside-body is true, check if point is inside body
     (when (and
+           inside
            read-prefix-pos
-           read-postfix-pos
-           inside)
+           read-postfix-pos)
 
       (setq point-in-body (and
                            (> (point-marker) read-prefix-pos)
@@ -1952,19 +1971,23 @@
     ;; Select the current rows pre/postfix
     (cond ((block-comment--is-body)
            (progn
+             (message "is body")
              (setq prefix block-comment-prefix)
              (setq postfix block-comment-postfix))
            )
           ((block-comment--is-enclose-top)
            (progn
+             (message "is top")
              (setq prefix block-comment-enclose-prefix-top)
              (setq postfix block-comment-enclose-postfix-top))
            )
           ((block-comment--is-enclose-bot)
            (progn
+             (message "is bot")
              (setq prefix block-comment-enclose-prefix-bot)
              (setq postfix block-comment-enclose-postfix-bot))
            )
+          (t (message "not body at: %d" (line-number-at-pos)))
           )
 
     (cons prefix postfix)
