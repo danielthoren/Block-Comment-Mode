@@ -4,16 +4,8 @@
 ;; elements. After this point, the new size of 3 is persistent, even
 ;; if point moves to a new row with a non-empty comment row above.
 
-;; FIXME: Bug in alignment with previous rows comment. If current rows
-;;        comment is wider than block comment after alignment, the
-;;        program crashes.
-
 ;; FIXME: Look into why the function block-comment--is-comment is run
 ;;        so many times when a character is inserted
-
-;; FIXME: Change way to find prefix, instead of searching forward, use
-;; search backward. This should enable finding prefix even when at top
-;; of buffer, or when comment is left aligned
 
 ;; TODO: implement offset between top enclose body and bottom enclose
 
@@ -1006,6 +998,7 @@
         )
 
     (when (block-comment--has-comment) ;; Align text if there is any
+
       (block-comment--jump-to-last-char-in-body)
       (setq comment-text-end (point-marker))
 
@@ -1155,30 +1148,19 @@
           (curr-elem 0)
           )
 
-      (message "body start: %d body center: %d prev-start: %d prev-end: %d body end: %d proper list: %s"
-               body-start-distance
-               body-center-distance
-               prev-indent-start-distance
-               prev-indent-end-distance
-               body-end-distance
-               (proper-list-p list))
-
-      (message "length of list: %d" (length list))
-
       ;; Sort by distance
       (setq list (sort list
                        (lambda (a b)
                          (< (symbol-value (car a)) (symbol-value (car b))))))
 
-      ;; Iterate until first distance larger than 0 is found, or until the
-      ;; end of the list
-      (message "length of list: %d" (length list))
-      (while (and (< curr-elem (length list))
-                  (>= 0 (symbol-value (car (nth curr-elem list)))))
+      ;; Iterate until first distance larger than 0 that can fit
+      ;; inside of the body is found, or until the end of the list.
+      (while (and (< curr-elem (- (length list) 1))
+                  (or (>= 0 (symbol-value (car (nth curr-elem list))))
+                      (< (- body-end (+ comment-text-end (symbol-value (car (nth curr-elem list))))) 0 )
+                      )
+                  )
 
-        (message "curr elem: %s distance: %d"
-                 (cdr (nth curr-elem list))
-                  (symbol-value (car (nth curr-elem list))))
         (setq curr-elem (+ curr-elem 1))
         )
 
@@ -1195,7 +1177,6 @@
         (setq curr-elem 0)
         )
 
-      (message "Next: %s" (cdr (nth curr-elem list)))
       (cdr (nth curr-elem list))
       )
     )
@@ -1929,6 +1910,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--jump-to-previous-text-column (&optional end)
+  (interactive)
   """  Jump to the same column as the text block in the previous block        """
   """  comment row. If param end is set to t, then jump to same column        """
   """  as the end of the text block in the previous row.                      """
@@ -1945,7 +1927,7 @@
     (save-excursion
       (forward-line -1)
       (block-comment--jump-to-comment-start)
-      (setq prev-block-start (current-column)))
+      (setq prev-block-start (current-column))
 
       (if end
           (block-comment--jump-to-last-char-in-body)
@@ -1953,6 +1935,7 @@
 
       (setq prev-comment-column (current-column))
       (setq prev-text-offset (- prev-comment-column prev-block-start))
+      )
 
     ;; Move to same position on current row
     (block-comment--jump-to-comment-start)
@@ -2069,6 +2052,7 @@
   )
 
 (defun block-comment--jump-to-body-start (&optional edge-offset prefix)
+  (interactive)
   """  Jumps to the start of block comment body                               """
   """  Param 'edge-offset': The offset from the block comment prefix          """
   """                       Default: block-comment-edge-offset                """
@@ -2127,6 +2111,7 @@
   )
 
 (defun block-comment--jump-to-first-char-in-body (&optional offset)
+  (interactive)
   """   Jumps to the first char in the comment body text                       """
   """   Beginning means the first non-fill character in the body               """
   """   Param: 'offset': The offset can be used to change where to jump:       """
@@ -2164,6 +2149,7 @@
   )
 
 (defun block-comment--jump-to-last-char-in-body (&optional offset)
+  (interactive)
   """  jumps to end of comment in body at point End means the place right     """
   """  after the last non-fill character in the body                          """
   """  Param: 'offset': Jumps to last char in body + this offset. Default = 1 """
