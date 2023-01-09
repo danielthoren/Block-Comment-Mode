@@ -1845,11 +1845,6 @@
     )
   )
 
-(defun block-comment-debug-is-comment ()
-  (interactive)
-  (block-comment--is-comment block-comment-prefix block-comment-fill block-comment-postfix)
-  )
-
 (defun block-comment--is-comment (prefix fill postfix &optional inside)
   (interactive)
   """ checks if the current row follows the format of a block comment body     """
@@ -1986,22 +1981,22 @@
   )
 
 (defun block-comment--jump-to-comment-start (&optional prefix)
-  """  Jump to block comment start, before the prefix.                         """
+  (interactive)
+  """  Jump to block comment start, the first char of the prefix               """
   """  Param 'prefix' : The prefix to look for                                 """
   """                   Default: block-comment-prefix                          """
   """  Ret: The position of the comment start                                  """
 
   (unless prefix (setq prefix (block-comment--get-row-prefix)))
 
-  ;; TODO: Send offset to jump-to-body-start instead of doing it manually here
   (when (> (line-number-at-pos) 0)
-    (block-comment--jump-to-body-start 0 prefix)
-    (backward-char (string-width prefix))
+    (block-comment--jump-to-body-start (- 0 (string-width prefix)) prefix)
     )
   (point-marker)
   )
 
 (defun block-comment--jump-to-comment-end (&optional offset postfix)
+  (interactive)
   """  Jump to block comment end, the char directly after after the postfix.    """
   """  Param 'offset': Offset can be used to move the position from the         """
   """                  default position                                         """
@@ -2013,10 +2008,7 @@
   (unless offset (setq offset 1))
   (unless postfix (setq postfix (block-comment--get-row-postfix)))
 
-  ;; TODO: Send offset to jump-to-body-start instead of doing it manually here
-  (block-comment--jump-to-body-end 0 postfix)
-  (forward-char (string-width postfix))
-  (forward-char offset)
+  (block-comment--jump-to-body-end (- 0 (+ (string-width postfix) offset)) postfix)
   (point-marker)
   )
 
