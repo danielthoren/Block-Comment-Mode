@@ -6,19 +6,35 @@
 
 ;; FIXME: Look into why the function block-comment--is-comment is run
 ;;        so many times when a character is inserted
-
-;; TODO: implement offset between top enclose body and bottom enclose
+;;      TODO: Look over the start/resume/insert logic of mode. Strange
+;;            interaction between the following functions:
+;;
+;;               block-comment-centering--cursor-moved (if outside boundry, but in  body)
+;;               block-comment--resume (default inits style and sets boundry)
+;;
+;;               block-comment-newline (Stores text right of point /call/ re-insert text)
+;;               block-comment--insert-new-line (default inits variables /call/ sets boundry, jumps center if centering)
+;;               block-comment--insert-line (insert row)
+;;
+;;               block-comment--insert-or-resume
+;;               block-comment--insert (if enough room for comment: insert top-enclose /call/ insert bot-enclose)
+;;               block-comment--insert-new-line (default init variables, insert comment row)
+;;
+;;               block-comment--insert-or-resume (detects style)
+;;               block-comment--resume (default initializes all variables, set boundry, jump-back)
 
 ;; TODO: Test extensively, then tag for release 1
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Release 2 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO: implement offset between top enclose body and bottom enclose
 
 ;; TODO: Split mode into multiple files
 
 ;; TODO: Adhere to GNU coding convention:
 ;;       https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
 
-;; Todo: Add Toggling Between Different Lengths of block comments
+;; TODO: Add Toggling Between Different Lengths of block comments
 
 ;; TODO: Implement automatic block comment width detection
 
@@ -190,9 +206,10 @@
 """                          Startup/shutdown logic                          """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun block-comment--init-variables ()
+(defun block-comment--default-init-variables ()
   """ Init function run when block-comment-mode is started.                   """
   """ Sets default values for variables                                       """
+  ;; TODO: Fix default style based on language?
   (unless (boundp 'block-comment-prefix)
     (block-comment--init-comment-style 20   "/*" " " "*/"    "/*" "*" "*/" ))
 
@@ -273,7 +290,7 @@
 (defun block-comment--shutdown ()
   """ Turns block comment off by removing the hooks """
   (block-comment--remove-hooks)
-  (block-comment--init-variables)
+  (block-comment--default-init-variables)
   )
 
 (defun block-comment--remove-hooks ()
@@ -302,12 +319,12 @@
   )
 
 (defun block-comment--resume (&optional jump-back)
-  """ Resumes block comment mode using existing block comment   """
-  """ If 'jump-back' is t, jumps to end of comment inside block """
-  """ else, inits block comment mode at point                   """
+  """  Resumes block comment mode using existing block comment    """
+  """  If 'jump-back' is t, jumps to end of comment inside block  """
+  """  else, inits block comment mode at point                    """
 
   ;; init the centering mode without activating it
-  (block-comment--init-variables)
+  (block-comment--default-init-variables)
 
   (save-excursion
 
@@ -338,8 +355,10 @@
   )
 
 (defun block-comment-centering--cursor-moved ()
-  """ This function is triggered by a hook every time point has moved        """
-  """ Used to abort block-comment-mode if cursor is outside of block comment """
+  """   This function is triggered by a hook every time point has moved.         """
+  """   Used to abort block-comment-mode if cursor is outside of row boundry.    """
+  """   If we are outside of row boundry, check if we are on a new block         """
+  """   comment row. If we are, resume on the new row.                           """
   (let* (
          (start (marker-position block-comment-centering--start-pos))
          (end (marker-position block-comment-centering--end-pos))
@@ -414,7 +433,7 @@
   (unless width (setq width block-comment-width))
 
   ;; init the centering mode without activating it
-  (block-comment--init-variables)
+  (block-comment--default-init-variables)
 
   ;; Insert new line with same indent
   (block-comment--insert-line width)
@@ -425,6 +444,7 @@
     (setq block-comment-centering--start-pos (point-marker))
     )
 
+  ;; Set comment body end pos
   (save-excursion
     (block-comment--jump-to-body-end 0)
     (setq block-comment-centering--end-pos (point-marker))
