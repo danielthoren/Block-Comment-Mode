@@ -89,7 +89,7 @@
     )
   )
 
-(defun block-comment-newline ()
+(defun block-comment-newline (&optional target-width)
   """ Inserts a new line and moves text to the right of point down"""
   (interactive)
 
@@ -97,15 +97,15 @@
         (remain-text-start (point-marker))
         (remain-text-end nil)
         (remain-text nil)
-        (target-width nil)
         )
 
     (block-comment--remove-hooks)
 
     ;; Get current block-comment width
-    (setq target-width (block-comment--get-comment-width))
+    (unless target-width (setq target-width (block-comment--get-comment-width)))
 
-    (when (and (block-comment--has-comment)
+    (when (and (block-comment--is-body)
+               (block-comment--has-comment)
                (not (block-comment--is-point-right-of-comment)))
       (block-comment--jump-to-last-char-in-body)
       (setq remain-text-end (point-marker))
@@ -123,7 +123,9 @@
     (end-of-line)
     (insert "\n")
     (block-comment--indent-accoring-to-previous-block-row)
-    (block-comment--insert-new-line target-width)
+
+    (block-comment--insert-line target-width)
+    (block-comment--init-row-boundries)
 
     (block-comment--add-hooks)
 
@@ -219,6 +221,27 @@
   (set (make-local-variable 'block-comment-centering--left-offset) 0)
   (set (make-local-variable 'block-comment-centering--right-offset) 0)
   (set (make-local-variable 'block-comment-has-hooks) nil)
+  )
+
+(defun block-comment--init-row-boundries ()
+  """ Init comment row boundries for the current row.                        """
+
+  (if (block-comment--is-body)
+      (progn
+        ;; Set comment body start pos
+        (save-excursion
+          (block-comment--jump-to-body-start 0)
+          (setq block-comment-centering--start-pos (point-marker))
+          )
+
+        ;; Set comment body end pos
+        (save-excursion
+          (block-comment--jump-to-body-end 0)
+          (setq block-comment-centering--end-pos (point-marker))
+          )
+        )
+    (message "Warning: Cannot init row boundries, not on comment body row")
+    )
   )
 
 (defun block-comment--init-comment-style (
@@ -383,6 +406,7 @@
 
   ;; Reset style parameters if they are incomplete
   (block-comment--reset-style-if-incomplete)
+  (block-comment--default-init-variables)
 
   ;; If at the top of the buffer, insert new line before inserting
   ;; block comment to avoid truncating the comment
@@ -400,7 +424,10 @@
 
         (newline)
         (block-comment--indent-accoring-to-previous-block-row)
-        (block-comment--insert-new-line)
+        ;; (block-comment--insert-new-line)
+
+        (block-comment--insert-line block-comment-width)
+        (block-comment--init-row-boundries)
 
         ;; Insert bottom enclose
         (save-excursion
@@ -422,42 +449,6 @@
     ) ;; end if
   )
 
-
-(defun block-comment--insert-new-line (&optional width)
-  (interactive)
-  """    Inserts a block comment body line below point, at the                """
-  """    current indentation level and initializes centering                  """
-  """    Param 'width': The width of the new line,                            """
-  """                   default: block-comment-width                          """
-
-  (unless width (setq width block-comment-width))
-
-  ;; init the centering mode without activating it
-  (block-comment--default-init-variables)
-
-  ;; Insert new line with same indent
-  (block-comment--insert-line width)
-
-  ;; Set comment body start pos
-  (save-excursion
-    (block-comment--jump-to-body-start 0)
-    (setq block-comment-centering--start-pos (point-marker))
-    )
-
-  ;; Set comment body end pos
-  (save-excursion
-    (block-comment--jump-to-body-end 0)
-    (setq block-comment-centering--end-pos (point-marker))
-    )
-
-  ;; Jump to center of user comment if centering enabled,
-  ;; else jump to beginning of user comment
-  (if block-comment-centering-enabled
-      (block-comment--jump-to-body-center)
-    (block-comment--jump-to-body-start)
-    )
-  )
-
 (defun block-comment--insert-line (width)
   """  Inserts a new block comment body line at point with 'indent-level'     """
   """  Param 'width' : The width of the comment line                          """
@@ -476,12 +467,14 @@
       (insert block-comment-prefix)
       (insert (make-string fill-count (string-to-char block-comment-fill)))
       (insert block-comment-postfix)
-
-      ;; Return end of block comment
-      (block-comment--jump-to-body-end 0)
-      (point-marker)
-      t
       ) ;; End excursion
+
+    ;; Jump to center of user comment if centering enabled,
+    ;; else jump to beginning of user comment
+    (if block-comment-centering-enabled
+        (block-comment--jump-to-body-center)
+      (block-comment--jump-to-body-start)
+      )
     )
   )
 
@@ -1577,7 +1570,7 @@
   """ Checks if the block-comment-body at point contains a user comment """
   """ If it does, then return t, else nil                               """
   (let (
-        (body-end 0)
+        (body-end nil)
         )
     (save-excursion
       (setq body-end (block-comment--jump-to-body-end))
