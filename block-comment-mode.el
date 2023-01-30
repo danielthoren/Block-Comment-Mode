@@ -6,22 +6,7 @@
 
 ;; FIXME: Look into why the function block-comment--is-comment is run
 ;;        so many times when a character is inserted
-;;      TODO: Look over the start/resume/insert logic of mode. Strange
-;;            interaction between the following functions:
-;;
-;;               block-comment-centering--cursor-moved (if outside boundry, but in  body)
-;;               block-comment--resume (default inits style and sets boundry)
-;;
-;;               block-comment-newline (Stores text right of point /call/ re-insert text)
-;;               block-comment--insert-new-line (default inits variables /call/ sets boundry, jumps center if centering)
-;;               block-comment--insert-line (insert row)
-;;
-;;               block-comment--insert-or-resume
-;;               block-comment--insert (if enough room for comment: insert top-enclose /call/ insert bot-enclose)
-;;               block-comment--insert-new-line (default init variables, insert comment row)
-;;
-;;               block-comment--insert-or-resume (detects style)
-;;               block-comment--resume (default initializes all variables, set boundry, jump-back)
+;;      TODO: Look over the start/resume/insert logic of mode
 
 ;; TODO: Test extensively, then tag for release 1
 
@@ -89,54 +74,6 @@
     )
   )
 
-(defun block-comment-newline (&optional target-width)
-  """ Inserts a new line and moves text to the right of point down"""
-  (interactive)
-
-  (let (
-        (remain-text-start (point-marker))
-        (remain-text-end nil)
-        (remain-text nil)
-        )
-
-    (block-comment--remove-hooks)
-
-    ;; Get current block-comment width
-    (unless target-width (setq target-width (block-comment--get-comment-width)))
-
-    (when (and (block-comment--is-body)
-               (block-comment--has-comment)
-               (not (block-comment--is-point-right-of-comment)))
-      (block-comment--jump-to-last-char-in-body)
-      (setq remain-text-end (point-marker))
-
-      ;; Delete remaining text between point and end of body
-      (setq remain-text (delete-and-extract-region remain-text-start
-                                                   remain-text-end))
-
-      ;; Insert the same amount of fill characters that we just removed to keep
-      ;; alignment
-      (insert (make-string (string-width remain-text)
-                           (string-to-char block-comment-fill)))
-      )
-
-    (end-of-line)
-    (insert "\n")
-    (block-comment--indent-accoring-to-previous-block-row)
-
-    (block-comment--insert-line target-width)
-    (block-comment--init-row-boundries)
-
-    (block-comment--add-hooks)
-
-    ;; If there is text to the right of point, reinsert the deleted text
-    (when remain-text
-      (insert remain-text)
-      (block-comment--jump-to-first-char-in-body)
-      )
-    )
-  )
-
 (defun block-comment-toggle-centering ()
   """ Toggles centering mode """
   (interactive)
@@ -174,20 +111,15 @@
     ;;Check if in block comment
     (if (block-comment--detect-style)
         (progn
-          ;; If t, resume with jump back condition
-          (block-comment--resume t)
-          ;; Auto format comment
+          ;; init the centering mode without activating it
+          (block-comment--default-init-variables)
+          ;; Align width of each row in the comment
           (block-comment--align-width)
-          ;; Jump to last char if there is a comment
-          (if (block-comment--has-comment)
-              (block-comment--jump-to-last-char-in-body)
-            ;; If there is not comment, jumpt to start/center depending on mode
-            (progn
-              (if block-comment-centering-enabled
-                  (block-comment--jump-to-body-center)
-                (block-comment--jump-to-body-start)
-                ))
-            ))
+          ;; init row boundries
+          (block-comment--init-row-boundries)
+          ;; Jump to starting position
+          (block-comment--jump-back)
+          )
       ;; Else try to insert new comment if the current line is empty
       (if (block-comment--is-current-line-empty)
           (setq inserted (block-comment--insert))
@@ -341,38 +273,15 @@
   (setq block-comment-has-hooks t)
   )
 
-(defun block-comment--resume (&optional jump-back)
-  """  Resumes block comment mode using existing block comment    """
-  """  If 'jump-back' is t, jumps to end of comment inside block  """
-  """  else, inits block comment mode at point                    """
-
-  ;; init the centering mode without activating it
-  (block-comment--default-init-variables)
-
-  (save-excursion
-
-    ;; store the beginning of the block comment
-    (beginning-of-line)
-    (block-comment--jump-to-body-start 0)
-    (backward-char 1)
-    (setq block-comment-centering--start-pos (point-marker))
-
-    (end-of-line)
-    (block-comment--jump-to-body-end 0)
-    (forward-char 1)
-    (setq block-comment-centering--end-pos (point-marker))
-    )
-
-  ;; If there is a user comment, jump to end of said comment
-  ;; If there is no user comment, jump to center if centering,
-  ;;                              else jump to start
-  (when jump-back
-    (if (block-comment--has-comment)
-        (block-comment--jump-to-last-char-in-body)
-      (if block-comment-centering-enabled
-          (block-comment--jump-to-body-center)
-        (block-comment--jump-to-body-start)
-        )
+(defun block-comment--jump-back ()
+  """  if there is a user comment inside block: Jumps to end of comment       """
+  """  else if centering is enabled:            Jump to center                """
+  """  else centering is enabled:               Jump to start                 """
+  (if (block-comment--has-comment)
+      (block-comment--jump-to-last-char-in-body)
+    (if block-comment-centering-enabled
+        (block-comment--jump-to-body-center)
+      (block-comment--jump-to-body-start)
       )
     )
   )
@@ -390,7 +299,10 @@
 
     (if (or (< cur start) (< end cur))  ;; If outside of row boundry
         (if (block-comment--is-body t)  ;; If still in a block comment body
-            (block-comment--resume nil) ;; Run resume on new line to continue
+            (progn ;; Set up variables for new row
+              (block-comment--default-init-variables)
+              (block-comment--init-row-boundries)
+              )
           (block-comment-mode 0)  ;; If not on block comment body, exit centering
           )
     )
@@ -424,7 +336,6 @@
 
         (newline)
         (block-comment--indent-accoring-to-previous-block-row)
-        ;; (block-comment--insert-new-line)
 
         (block-comment--insert-line block-comment-width)
         (block-comment--init-row-boundries)
@@ -447,6 +358,54 @@
       nil
       )
     ) ;; end if
+  )
+
+(defun block-comment-newline (&optional target-width)
+  """ Inserts a new line and moves text to the right of point down"""
+  (interactive)
+
+  (let (
+        (remain-text-start (point-marker))
+        (remain-text-end nil)
+        (remain-text nil)
+        )
+
+    (block-comment--remove-hooks)
+
+    ;; Get current block-comment width
+    (unless target-width (setq target-width (block-comment--get-comment-width)))
+
+    (when (and (block-comment--is-body)
+               (block-comment--has-comment)
+               (not (block-comment--is-point-right-of-comment)))
+      (block-comment--jump-to-last-char-in-body)
+      (setq remain-text-end (point-marker))
+
+      ;; Delete remaining text between point and end of body
+      (setq remain-text (delete-and-extract-region remain-text-start
+                                                   remain-text-end))
+
+      ;; Insert the same amount of fill characters that we just removed to keep
+      ;; alignment
+      (insert (make-string (string-width remain-text)
+                           (string-to-char block-comment-fill)))
+      )
+
+    (end-of-line)
+    (insert "\n")
+    (block-comment--indent-accoring-to-previous-block-row)
+
+    (block-comment--insert-line target-width)
+    (block-comment--init-row-boundries)
+
+    (block-comment--add-hooks)
+
+    ;; If there is text to the right of point, reinsert the deleted text
+    (when remain-text
+      (insert remain-text)
+      (block-comment--jump-to-first-char-in-body)
+      )
+    )
   )
 
 (defun block-comment--insert-line (width)
