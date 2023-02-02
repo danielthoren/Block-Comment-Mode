@@ -14,7 +14,7 @@
 
 ;; TODO: implement offset between top enclose body and bottom enclose
 
-;; TODO: Split mode into multiple files
+;; TODO: Split mode into multiple files?
 
 ;; TODO: Adhere to GNU coding convention:
 ;;       https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
@@ -34,30 +34,28 @@
 (define-minor-mode block-comment-mode
   "Toggle block comments mode"
   :init-value nil
-  :lighter "[Block-comment-mode]"
-    :keymap (let ((map (make-sparse-keymap)))
+  :lighter " [Block-Comment]"
+  :keymap (let ((map (make-sparse-keymap)))
             ;; press C-g to abort comment mode
-            (define-key map (kbd "C-g") 'block-comment-abort)
+            ;; TODO: Keep track of block comment on/off
+            (define-key map (kbd "C-M-k") 'block-comment--insert-or-resume)
+            (define-key map (kbd "C-g") 'block-comment--remove-hooks)
             (define-key map (kbd "RET") 'block-comment-newline)
             (define-key map (kbd "M-j") 'block-comment-newline-indent)
             (define-key map (kbd "C-c C-c") 'block-comment-toggle-centering)
             (define-key map (kbd "TAB") 'block-comment-align-next)
             map)
 
-    (if block-comment-mode
-    (block-comment--add-hooks)
-    (block-comment--shutdown)
-    )
-    )
+  (if block-comment-mode
+      (block-comment--add-hooks)
+    (block-comment--remove-hooks))
+
+    (block-comment--default-init-variables)
+  )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 """                         Functions bound to keys                          """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defun block-comment-abort ()
-  """ Turns block-comment-mode off """
-  (interactive)
-  (block-comment-mode 0))
 
 (defun block-comment-newline-indent ()
   (interactive)
@@ -242,14 +240,9 @@
   (set (make-local-variable 'block-comment-edge-offset) 2)
   )
 
-(defun block-comment--shutdown ()
-  """ Turns block comment off by removing the hooks """
-  (block-comment--remove-hooks)
-  (block-comment--default-init-variables)
-  )
-
 (defun block-comment--remove-hooks ()
   """  Adds necessasry hooks                                                  """
+  (interactive)
   (setq post-command-hook
         (delete #'block-comment-centering--cursor-moved post-command-hook))
   (setq after-change-functions
