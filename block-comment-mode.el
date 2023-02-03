@@ -1,12 +1,17 @@
+;;; -*- lexical-binding: t; -*-
+
 ;; FIXME: Bug in alignment with previous rows comment. After aligning
 ;; once with an empty comment row above, the list in the function
 ;; 'block-comment--align-get-next' decarese from 5 elements long, to 3
 ;; elements. After this point, the new size of 3 is persistent, even
 ;; if point moves to a new row with a non-empty comment row above.
 
-;; FIXME: Look into why the function block-comment--is-comment is run
-;;        so many times when a character is inserted
-;;      TODO: Look over the start/resume/insert logic of mode
+;; TODO: Look over how local variables are managed:
+;;      TODO: Look over initializations:
+;;            * Variables are default inited in insert-or-resume after the current
+;;              style has been detected and set. Should this even work?
+;;      TODO: Look over variable defenitions, should these happen in the define
+;;            -minor-mode? Now they are re-defined regularly in default-init-variables
 
 ;; TODO: Test extensively, then tag for release 1
 
@@ -112,6 +117,11 @@
     (if (block-comment--detect-style)
         (progn
           ;; init the centering mode without activating it
+
+          ;; TODO: Why is this working? Should this not write over the
+          ;; variables set in the detect-style function? Has to do
+          ;; with the fact that set is used here, but setq is used in
+          ;; detect-style?
           (block-comment--default-init-variables)
           ;; Align width of each row in the comment
           (block-comment--align-width)
