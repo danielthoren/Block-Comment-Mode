@@ -1,6 +1,6 @@
-;; Turn lexical binding off to enable desired behaviour of the :var form
-
 ;;; -*- lexical-binding: nil; -*-
+
+;; Turn lexical binding off to enable desired behaviour of the :var form
 
 ;; (describe "Test insert block comment"
 ;;           (it "Test symetrical insert (python)"
@@ -29,8 +29,11 @@
 
 ;;               (expect t :to-be t)))
 
+(add-to-list 'load-path "cask")
+(require 'block-comment-mode)
 
 (describe "Test is functions"
-          (it "Test empty line check")
-
-              (expect (block-comment--is-current-line-empty) :to-be t))
+  (it "Test empty line check"
+    (expect (block-comment--is-current-line-empty)
+            :to-be
+            t)))
