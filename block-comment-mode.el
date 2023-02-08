@@ -557,7 +557,7 @@
         ;; Move to row above block comment body
         (while (progn
                  ;; Move up one line
-                 (forward-line 1)
+                (forward-line 1)
                  ;; Continue if still in block comment body
                  (block-comment--is-body nil)
                  )
@@ -1800,8 +1800,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--is-current-line-empty ()
+  (interactive)
   """ Checks if current line contains any non ' ' characters                 """
-  (string-match-p "\\`\\s-*$" (thing-at-point 'line)))
+  (eq (string-match-p "\\`\\s-*$" (thing-at-point 'line)) 0))
 
 (defun block-comment--is-blank-line (&optional pos)
   """  Checks if line at pos/point is emtpy, returns t if so, else nil        """
