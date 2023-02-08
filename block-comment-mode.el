@@ -1,4 +1,15 @@
-;;; -*- lexical-binding: t; -*-
+;;; block-comment-mode.el --- Generate and format block comments  -*- lexical-binding: t; -*-
+
+;; Author: Daniel Thoren <danne_thoren@hotmail.com>
+;; Maintainer: Daniel Thoren <danne_thoren@hotmail.com>
+
+;; This file is not part of GNU Emacs.
+
+;; This file is free software…
+
+;; Version: 0.1
+
+;;; Commentary:
 
 ;; FIXME: Bug in alignment with previous rows comment. After aligning
 ;; once with an empty comment row above, the list in the function
@@ -12,6 +23,8 @@
 ;;              style has been detected and set. Should this even work?
 ;;      TODO: Look over variable defenitions, should these happen in the define
 ;;            -minor-mode? Now they are re-defined regularly in default-init-variables
+
+;; TODO: Fix all warning when building with cask
 
 ;; TODO: Test extensively, then tag for release 1
 
@@ -34,7 +47,7 @@
 ;; TODO: Make block comment width indentation sensative, meaning that it does
 ;;       not exceed a strict width limit (80 characters)
 
-(provide 'block-comment-mode)
+;;; Code:
 
 (define-minor-mode block-comment-mode
   "Toggle block comments mode"
@@ -1604,7 +1617,7 @@
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-"""                            Get width functions                            """
+"""                            Get functions                                  """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--get-widest-comment-text ()
@@ -1737,6 +1750,48 @@
     ;; Return text width
     (- text-end text-start)
     ) ;; End let
+  )
+
+(defun block-comment--get-row-prefix-postfix ()
+  (interactive)
+  """  Gets the prefix & postfix based on the line type at point.             """
+  """  Ret: The (prefix, postfix) of the line type at point as a cons-cell    """
+  (let (
+        (prefix nil)
+        (postfix nil)
+        )
+    ;; Select the current rows pre/postfix
+    (cond ((block-comment--is-body)
+           (progn
+             (message "is body")
+             (setq prefix block-comment-prefix)
+             (setq postfix block-comment-postfix))
+           )
+          ((block-comment--is-enclose-top)
+           (progn
+             (message "is top")
+             (setq prefix block-comment-enclose-prefix-top)
+             (setq postfix block-comment-enclose-postfix-top))
+           )
+          ((block-comment--is-enclose-bot)
+           (progn
+             (message "is bot")
+             (setq prefix block-comment-enclose-prefix-bot)
+             (setq postfix block-comment-enclose-postfix-bot))
+           )
+          (t (message "not body at: %d" (line-number-at-pos)))
+          )
+
+    (cons prefix postfix)
+    )
+  )
+
+(defun block-comment--get-row-prefix ()
+  (car (block-comment--get-row-prefix-postfix))
+  )
+
+(defun block-comment--get-row-postfix ()
+  (cdr (block-comment--get-row-prefix-postfix))
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1964,48 +2019,6 @@
     (block-comment--jump-to-comment-start)
     (forward-char prev-text-offset)
     )
-  )
-
-(defun block-comment--get-row-prefix-postfix ()
-  (interactive)
-  """  Gets the prefix & postfixbased on the line type at point.              """
-  """  Ret: The (prefix, postfix) of the line type at point as a cons-cell    """
-  (let (
-        (prefix nil)
-        (postfix nil)
-        )
-    ;; Select the current rows pre/postfix
-    (cond ((block-comment--is-body)
-           (progn
-             (message "is body")
-             (setq prefix block-comment-prefix)
-             (setq postfix block-comment-postfix))
-           )
-          ((block-comment--is-enclose-top)
-           (progn
-             (message "is top")
-             (setq prefix block-comment-enclose-prefix-top)
-             (setq postfix block-comment-enclose-postfix-top))
-           )
-          ((block-comment--is-enclose-bot)
-           (progn
-             (message "is bot")
-             (setq prefix block-comment-enclose-prefix-bot)
-             (setq postfix block-comment-enclose-postfix-bot))
-           )
-          (t (message "not body at: %d" (line-number-at-pos)))
-          )
-
-    (cons prefix postfix)
-    )
-  )
-
-(defun block-comment--get-row-prefix ()
-  (car (block-comment--get-row-prefix-postfix))
-  )
-
-(defun block-comment--get-row-postfix ()
-  (cdr (block-comment--get-row-prefix-postfix))
   )
 
 (defun block-comment--jump-to-comment-start (&optional prefix)
@@ -2247,3 +2260,7 @@
   ;; Move according to offset
   (block-comment--move-line offset)
   )
+
+(provide 'block-comment-mode)
+
+;;; block-comment-mode.el ends here
