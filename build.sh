@@ -1,4 +1,4 @@
 #!/bin/bash
 
-export PATH="$HOME/.cask/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
 cask build
