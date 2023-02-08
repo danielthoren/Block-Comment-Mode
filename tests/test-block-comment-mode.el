@@ -33,7 +33,17 @@
 (require 'block-comment-mode)
 
 (describe "Test is functions"
+  (newline)
+  (newline)
+  (forward-line -1)
   (it "Test empty line check"
     (expect (block-comment--is-current-line-empty)
             :to-be
-            t)))
+            t))
+
+  (it "Test non-empty line check"
+    (insert "random string")
+    (expect (block-comment--is-current-line-empty)
+            :to-be
+            nil))
+  )
