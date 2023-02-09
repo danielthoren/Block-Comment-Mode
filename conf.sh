@@ -17,4 +17,6 @@ if ! command_exists cask ; then
     git clone https://github.com/cask/cask
     make -C cask install
     rm -rf ./cask
+
+    cask
 fi

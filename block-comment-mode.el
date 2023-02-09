@@ -17,6 +17,11 @@
 ;; elements. After this point, the new size of 3 is persistent, even
 ;; if point moves to a new row with a non-empty comment row above.
 
+;; FIXME: Bug when using centering mode. Does not swap every other letter,
+;;        instead swapping every few letters
+
+;; TODO: Fix all warning when building with cask
+
 ;; TODO: Look over how local variables are managed:
 ;;      TODO: Look over initializations:
 ;;            * Variables are default inited in insert-or-resume after the current
@@ -24,11 +29,11 @@
 ;;      TODO: Look over variable defenitions, should these happen in the define
 ;;            -minor-mode? Now they are re-defined regularly in default-init-variables
 
-;; TODO: Fix all warning when building with cask
-
 ;; TODO: Test extensively, then tag for release 1
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Release 2 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO: Fix default style based on prog mode
 
 ;; TODO: implement offset between top enclose body and bottom enclose
 
@@ -49,22 +54,79 @@
 
 ;;; Code:
 
+
+
+;; TODO: Add docstring to all variables
+
+;; Buffer local variables
+(defvar-local block-comment-centering--start-pos nil)
+(defvar-local block-comment-centering--end-pos nil)
+(defvar-local block-comment-centering--order 1)
+(defvar-local block-comment-centering--left-offset 0)
+(defvar-local block-comment-centering--right-offset 0)
+(defvar-local block-comment-has-hooks nil)
+(defvar-local block-comment--force-no-hooks nil)
+
+;; Global variables
+(defvar block-comment-width 80)
+(defvar block-comment-prefix nil)
+(defvar block-comment-fill nil)
+(defvar block-comment-postfix nil)
+
+(defvar block-comment-enclose-prefix-top nil)
+(defvar block-comment-enclose-fill-top nil)
+(defvar block-comment-enclose-postfix-top nil)
+
+(defvar block-comment-enclose-prefix-bot nil)
+(defvar block-comment-enclose-fill-bot nil)
+(defvar block-comment-enclose-postfix-bot nil)
+
+;; Default values
+(defvar block-comment-prefix-default nil)
+(defvar block-comment-fill-default nil)
+(defvar block-comment-postfix-default nil)
+
+(defvar block-comment-enclose-prefix-top-default nil)
+(defvar block-comment-enclose-fill-top-default nil)
+(defvar block-comment-enclose-postfix-top-default nil)
+
+(defvar block-comment-enclose-prefix-bot-default nil)
+(defvar block-comment-enclose-fill-bot-default nil)
+(defvar block-comment-enclose-postfix-bot-default nil)
+
+;; Used to remember if is centering or not
+(defvar block-comment-centering-enabled nil)
+;; Sets the target spacing between pre/postfix and user comment
+(defvar block-comment-edge-offset 2)
+
+
 (define-minor-mode block-comment-mode
   "Toggle block comments mode"
   :init-value nil
   :lighter "[Block-comment-mode]"
     :keymap (let ((map (make-sparse-keymap)))
             ;; press C-g to abort comment mode
-            (define-key map (kbd "C-g") 'block-comment-abort)
-            (define-key map (kbd "RET") 'block-comment-newline)
-            (define-key map (kbd "M-j") 'block-comment-newline-indent)
-            (define-key map (kbd "C-c C-c") 'block-comment-toggle-centering)
-            (define-key map (kbd "TAB") 'block-comment-align-next)
-            map)
+              (define-key map (kbd "C-g") 'block-comment-abort)
+              (define-key map (kbd "RET") 'block-comment-newline)
+              (define-key map (kbd "M-j") 'block-comment-newline-indent)
+              (define-key map (kbd "C-c C-c") 'block-comment-toggle-centering)
+              (define-key map (kbd "TAB") 'block-comment-align-next)
+              map)
 
-    (if block-comment-mode
-        (block-comment--add-hooks)
-      (block-comment--shutdown)
+    (progn
+      (when block-comment-mode
+
+        (block-comment--default-init-variables)
+
+        (if (block-comment--insert-or-resume)
+            ;; Add hooks, starting mode
+            (block-comment--add-hooks)
+          ;; Disable mode if insertion failed
+          (setq block-comment-mode nil))
+        )
+
+      (unless block-comment-mode
+        (block-comment--shutdown))
       )
     )
 
@@ -72,9 +134,14 @@
 """                         Functions bound to keys                          """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun block-comment-abort ()
-  """ Turns block-comment-mode off """
+(defun block-comment-start ()
   (interactive)
+  (block-comment-mode 1)
+  )
+
+(defun block-comment-abort ()
+  (interactive)
+  """ Turns block-comment-mode off """
   (block-comment-mode 0))
 
 (defun block-comment-newline-indent ()
@@ -93,8 +160,8 @@
   )
 
 (defun block-comment-toggle-centering ()
-  """ Toggles centering mode """
   (interactive)
+  """ Toggles centering mode """
   (if block-comment-centering-enabled
       (progn
         (setq block-comment-centering-enabled nil) ;; If enabled , disable
@@ -120,18 +187,14 @@
   """ This function is called to create or resume a block comment           """
   """ Checks if point is inside block comment or not.                       """
   """ If it is, resumeprevious block comment, else start new block comment  """
-  (interactive)
 
   (let (
         (inserted t)
         )
 
-    (block-comment--default-init-variables)
-
     ;;Check if in block comment
     (if (block-comment--detect-style)
         (progn
-          ;; init the centering mode without activating it
 
           ;; Force hooks off
           (block-comment--remove-hooks)
@@ -162,9 +225,8 @@
           ))
       )
 
-    ;; enter block comment mode if resume succeeded
-    (when inserted
-      (block-comment-mode 1))
+    ;; Return if insertion was successful or not
+    inserted
     )
   )
 
@@ -176,16 +238,17 @@
   """ Init function run when block-comment-mode is started.                   """
   """ Sets default values for variables                                       """
   ;; TODO: Fix default style based on language?
-  (unless (boundp 'block-comment-prefix)
+  ;; TODO: Init style seperately?
+  (unless block-comment-prefix
     (block-comment--init-comment-style 20   "/*" " " "*/"    "/*" "*" "*/" ))
 
-  (set (make-local-variable 'block-comment-centering--start-pos) nil)
-  (set (make-local-variable 'block-comment-centering--end-pos) nil)
-  (set (make-local-variable 'block-comment-centering--order) 1)
-  (set (make-local-variable 'block-comment-centering--left-offset) 0)
-  (set (make-local-variable 'block-comment-centering--right-offset) 0)
-  (set (make-local-variable 'block-comment-has-hooks) nil)
-  (set (make-local-variable 'block-comment--force-no-hooks) nil)
+  (setq-local block-comment-centering--start-pos nil)
+  (setq-local block-comment-centering--end-pos nil)
+  (setq-local block-comment-centering--order 1)
+  (setq-local block-comment-centering--left-offset 0)
+  (setq-local block-comment-centering--right-offset 0)
+  (setq-local block-comment-has-hooks nil)
+  (setq-local block-comment--force-no-hooks nil)
   )
 
 (defun block-comment--init-row-boundries ()
@@ -242,43 +305,42 @@
     (setq enclose-postfix-bot enclose-postfix)
     )
 
-  (set (make-local-variable 'block-comment-width) width)
+  (setq block-comment-width width)
 
-  (set (make-local-variable 'block-comment-prefix) prefix)
-  (set (make-local-variable 'block-comment-fill) fill)
-  (set (make-local-variable 'block-comment-postfix) postfix)
+  (setq block-comment-prefix prefix)
+  (setq block-comment-fill fill)
+  (setq block-comment-postfix postfix)
 
-  (set (make-local-variable 'block-comment-enclose-prefix-top) enclose-prefix)
-  (set (make-local-variable 'block-comment-enclose-fill-top) enclose-fill)
-  (set (make-local-variable 'block-comment-enclose-postfix-top) enclose-postfix)
+  (setq block-comment-enclose-prefix-top enclose-prefix)
+  (setq block-comment-enclose-fill-top enclose-fill)
+  (setq block-comment-enclose-postfix-top enclose-postfix)
 
-  (set (make-local-variable 'block-comment-enclose-prefix-bot) enclose-prefix-bot)
-  (set (make-local-variable 'block-comment-enclose-fill-bot) enclose-fill-bot)
-  (set (make-local-variable 'block-comment-enclose-postfix-bot) enclose-postfix-bot)
+  (setq block-comment-enclose-prefix-bot enclose-prefix-bot)
+  (setq block-comment-enclose-fill-bot enclose-fill-bot)
+  (setq block-comment-enclose-postfix-bot enclose-postfix-bot)
 
   ;; Default parameters
-  (set (make-local-variable 'block-comment-prefix-default) prefix)
-  (set (make-local-variable 'block-comment-fill-default) fill)
-  (set (make-local-variable 'block-comment-postfix-default) postfix)
+  (setq block-comment-prefix-default prefix)
+  (setq block-comment-fill-default fill)
+  (setq block-comment-postfix-default postfix)
 
-  (set (make-local-variable 'block-comment-enclose-prefix-top-default) enclose-prefix)
-  (set (make-local-variable 'block-comment-enclose-fill-top-default) enclose-fill)
-  (set (make-local-variable 'block-comment-enclose-postfix-top-default) enclose-postfix)
+  (setq block-comment-enclose-prefix-top-default enclose-prefix)
+  (setq block-comment-enclose-fill-top-default enclose-fill)
+  (setq block-comment-enclose-postfix-top-default enclose-postfix)
 
-  (set (make-local-variable 'block-comment-enclose-prefix-bot-default) enclose-prefix-bot)
-  (set (make-local-variable 'block-comment-enclose-fill-bot-default) enclose-fill-bot)
-  (set (make-local-variable 'block-comment-enclose-postfix-bot-default) enclose-postfix-bot)
+  (setq block-comment-enclose-prefix-bot-default enclose-prefix-bot)
+  (setq block-comment-enclose-fill-bot-default enclose-fill-bot)
+  (setq block-comment-enclose-postfix-bot-default enclose-postfix-bot)
 
   ;; Used to remember if is centering or not
-  (set (make-local-variable 'block-comment-centering-enabled) centering-default)
+  (setq block-comment-centering-enabled centering-default)
   ;; Sets the target spacing between pre/postfix and user comment
-  (set (make-local-variable 'block-comment-edge-offset) 2)
+  (setq block-comment-edge-offset 2)
   )
 
 (defun block-comment--shutdown ()
   """ Turns block comment off by removing the hooks """
   (block-comment--remove-hooks)
-  (block-comment--default-init-variables)
   )
 
 (defun block-comment--force-no-hooks ()
@@ -371,7 +433,6 @@
 
   ;; Reset style parameters if they are incomplete
   (block-comment--reset-style-if-incomplete)
-  (block-comment--default-init-variables)
 
   ;; If at the top of the buffer, insert new line before inserting
   ;; block comment to avoid truncating the comment
