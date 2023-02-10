@@ -54,20 +54,9 @@
 
 ;;; Code:
 
-
-
 ;; TODO: Add docstring to all variables
 
-;; Buffer local variables
-(defvar-local block-comment-centering--start-pos nil)
-(defvar-local block-comment-centering--end-pos nil)
-(defvar-local block-comment-centering--order 1)
-(defvar-local block-comment-centering--left-offset 0)
-(defvar-local block-comment-centering--right-offset 0)
-(defvar-local block-comment-has-hooks nil)
-(defvar-local block-comment--force-no-hooks nil)
-
-;; Global variables
+;; Global variables shared between buffers
 (defvar block-comment-width 80)
 (defvar block-comment-prefix nil)
 (defvar block-comment-fill nil)
@@ -98,6 +87,25 @@
 (defvar block-comment-centering-enabled nil)
 ;; Sets the target spacing between pre/postfix and user comment
 (defvar block-comment-edge-offset 2)
+
+;; Buffer local variables
+(defvar-local block-comment-centering--start-pos nil)
+(defvar-local block-comment-centering--end-pos nil)
+(defvar-local block-comment-centering--order 1)
+(defvar-local block-comment-centering--left-offset 0)
+(defvar-local block-comment-centering--right-offset 0)
+(defvar-local block-comment-has-hooks nil)
+(defvar-local block-comment--force-no-hooks nil)
+
+;; Variables used in function 'block-comment--align-get-next' that needs to be
+;; dynamically bound since they are inserted into a list then sorted using a lambda
+
+;; TODO: Add block comment prefix if no other solution is found
+(defvar-local body-start-distance nil)
+(defvar-local prev-indent-start-distance nil)
+(defvar-local prev-indent-end-distance nil)
+(defvar-local body-end-distance nil)
+(defvar-local body-center-distance nil)
 
 
 (define-minor-mode block-comment-mode
@@ -254,22 +262,17 @@
 (defun block-comment--init-row-boundries ()
   """ Init comment row boundries for the current row.                        """
 
-  ;; (if (block-comment--is-body)
-  ;;     (progn
-        ;; Set comment body start pos
-        (save-excursion
-          (block-comment--jump-to-body-start 0)
-          (setq block-comment-centering--start-pos (point-marker))
-          )
+  ;; Set comment body start pos
+  (save-excursion
+    (block-comment--jump-to-body-start 0)
+    (setq block-comment-centering--start-pos (point-marker))
+    )
 
-        ;; Set comment body end pos
-        (save-excursion
-          (block-comment--jump-to-body-end 0)
-          (setq block-comment-centering--end-pos (point-marker))
-          )
-    ;;     )
-    ;; (message "Warning: Cannot init row boundries, not on comment body row")
-    ;; )
+  ;; Set comment body end pos
+  (save-excursion
+    (block-comment--jump-to-body-end 0)
+    (setq block-comment-centering--end-pos (point-marker))
+    )
   )
 
 (defun block-comment--init-comment-style (
@@ -368,7 +371,7 @@
     )
   )
 
-(defun block-comment--add-hooks (&optional enforce)
+(defun block-comment--add-hooks ()
   """   Adds necessary hooks so that block-comment-mode can react to          """
   """   changes in the buffer. This behaviour can be overridden by the        """
   """   function 'block-comment--force-no-hooks'. In which case, the hooks    """
@@ -477,8 +480,8 @@
   )
 
 (defun block-comment-newline (&optional target-width)
+    (interactive)
   """ Inserts a new line and moves text to the right of point down"""
-  (interactive)
 
   (let (
         (remain-text-start (point-marker))
@@ -664,7 +667,7 @@
   """        behaviour is undefined if it does not!                           """
 
   (let* (
-         (start-post nil)
+         (start-pos nil)
          (end-pos nil)
          (prefix "")
          (postfix "")
@@ -734,13 +737,9 @@
   """  OBS: Point must be on the enclose row before calling this function!    """
 
   (let* (
-         (block-start nil)
-         (block-end nil)
          (enclose-prefix nil)
          (enclose-fill nil)
          (enclose-postfix nil)
-         (enclose-body nil)
-         (enclose-body-regex nil)
          (enclose-found nil)
          )
 
@@ -783,7 +782,7 @@
   (let (
         (block-start nil)
         (block-end nil)
-        (bock-middle nil)
+        (block-middle nil)
         (enclose-fill nil)
         )
 
@@ -979,14 +978,13 @@
     )
   )
 
-(defun block-comment-centering--inserted-chars (left right)
+ (defun block-comment-centering--inserted-chars (left right)
   """   Handles when user inserts characters. Removes padding on right and """
   """   left side. If user comment grows larger than target width,         """
   """   stops removing characters                                          """
   (let (
         (remain-space-left 0)
         (remain-space-right 0)
-        (line-width 0)
         (edge-offset block-comment-edge-offset)
         )
 
@@ -997,13 +995,6 @@
       )
 
     (save-excursion
-
-      ;; Set line width for this row
-      (save-excursion
-
-      (end-of-line)
-      (setq line-width (current-column))
-      )
 
       ;; Get space remaining on right
       (save-excursion
@@ -1046,7 +1037,7 @@
             (setq block-comment-centering--end-pos (point-marker))
             )
           ;; If there is space left, remove the right portion
-          (delete-backward-char right)
+          (delete-char (- right))
           )
       )
     )
@@ -1159,6 +1150,7 @@
         (body-center 0)          ;; Body center position
         (prev-indent-end 0)      ;; The last char position of the text in the previous block comment
         (body-end nil)           ;; Body end position
+        (text-center nil)        ;; The center of the comment text
         )
 
     ;; Find text boundry if there is text
@@ -1220,37 +1212,14 @@
                              (+ comment-text-start
                                 text-center)))
 
-    (setq list '((body-start-distance . :start)
-            (body-center-distance . :center)
-            (prev-indent-start-distance . :prev-start)
-            (prev-indent-end-distance . :prev-end)
-            (body-end-distance . :end)))
-
-    (setq curr-elem 0)
-
     (let* (
-          ;; (body-start-distance (- body-start comment-text-start))
-          ;; (prev-indent-start-distance (- prev-indent-start comment-text-start))
-          ;; (prev-indent-end-distance (- prev-indent-end comment-text-start))
-          ;; (body-end-distance (- body-end comment-text-start))
+          (list '((body-start-distance . :start)
+                  (body-center-distance . :center)
+                  (prev-indent-start-distance . :prev-start)
+                  (prev-indent-end-distance . :prev-end)
+                  (body-end-distance . :end)))
 
-          ;; ;; The center of the comment text
-          ;; (text-center (if (= comment-text-start comment-text-end)
-          ;;                  comment-text-start
-          ;;                (ceiling (- comment-text-end comment-text-start)
-          ;;                         2)))
-          ;; ;; Distance from text center to body center
-          ;; (body-center-distance (- body-center
-          ;;                          (+ comment-text-start
-          ;;                             text-center)))
-
-          ;; (list '((body-start-distance . :start)
-          ;;         (body-center-distance . :center)
-          ;;         (prev-indent-start-distance . :prev-start)
-          ;;         (prev-indent-end-distance . :prev-end)
-          ;;         (body-end-distance . :end)))
-
-          ;; (curr-elem 0)
+          (curr-elem 0)
           )
 
       ;; Sort by distance
@@ -1292,10 +1261,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--align-width ()
-  (interactive)
   """  Aligns the width of all rows in accordance with the widest row          """
   (let* (
-        (start-pos (point-marker))
         (indentation (block-comment--get-indent-level))
         (rightmost-text-column (block-comment--get-rightmost-comment-text-column))
         (point-column (current-column))
@@ -1386,7 +1353,7 @@
   """  new boundry!                                                            """
 
   (if (< width-diff 0)
-      (block-comment--align-body-width-decrease width-diff fill)
+      (block-comment--align-body-width-decrease width-diff)
     (block-comment--align-body-width-increase width-diff fill)
     )
   )
@@ -1433,7 +1400,7 @@
       )
     )
 
-(defun block-comment--align-body-width-decrease (decrease fill)
+(defun block-comment--align-body-width-decrease (decrease)
   """  Decrease the block comment body width with 'decrease' amount           """
   """  Param 'decrease': How much the width should change, increases if      """
   """                    positive, decreases if negative                      """
@@ -1465,7 +1432,6 @@
           )
       ;; When not centering, only remove from the right if possible
       (let (
-            (remain-left (block-comment--jump-to-first-char-in-body))
             (remain-right (block-comment--jump-to-last-char-in-body 0))
             )
         ;; Try to remove as many characters as
@@ -1476,10 +1442,10 @@
       )
 
       (block-comment--jump-to-body-start 0)
-      (delete-forward-char left)
+      (delete-char left)
 
       (block-comment--jump-to-body-end 0)
-      (delete-backward-char right)
+      (delete-char (- right))
     )
   )
 
@@ -1507,8 +1473,8 @@
       ) ;; End when width-diff positive
 
     (when (< width-diff 0)
-      (delete-forward-char min-step)
-      (delete-backward-char max-step)
+      (delete-char min-step)
+      (delete-char (- max-step))
       )
     ) ;; End when width-diff negative
   )
@@ -1963,6 +1929,8 @@
         (is-enclose nil)
         (block-start nil)
         (block-end nil)
+        (enclose-body nil)
+        (enclose-body-template nil)
         )
     (when is-comment
       (save-excursion
@@ -2147,14 +2115,12 @@
   )
 
 (defun block-comment--jump-to-body-start (&optional edge-offset prefix)
-  (interactive)
   """  Jumps to the start of block comment body                               """
   """  Param 'edge-offset': The offset from the block comment prefix          """
   """                       Default: block-comment-edge-offset                """
   """  Param 'prefix' : The prefix to look for                                """
   """                   Default: block-comment-prefix                         """
   """  Ret : The position of the body start                                   """
-  (interactive)
   (unless edge-offset (setq edge-offset block-comment-edge-offset))
   (unless prefix (setq prefix (block-comment--get-row-prefix)))
 
