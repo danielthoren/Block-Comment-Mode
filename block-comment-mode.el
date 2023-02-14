@@ -31,6 +31,8 @@
 
 ;; TODO: Test extensively, then tag for release 1
 
+;; TODO: Swap argument order for init-comment-style to take preamble row first, then body
+
 ;;;;;;;;;;;;;;;;;;;;;;;; Release 2 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; TODO: Fix default style based on prog mode
@@ -248,7 +250,7 @@
   ;; TODO: Fix default style based on language?
   ;; TODO: Init style seperately?
   (unless block-comment-prefix
-    (block-comment--init-comment-style 20   "/*" " " "*/"    "/*" "*" "*/" ))
+    (block-comment--init-comment-style 80   "/*" " " "*/"    "/*" "*" "*/" ))
 
   (setq-local block-comment-centering--start-pos nil)
   (setq-local block-comment-centering--end-pos nil)
@@ -453,21 +455,23 @@
 
         (newline)
 
+        ;; Insert bot enclose
+        (block-comment--indent-accoring-to-previous-block-row)
+        (block-comment--insert-enclose block-comment-enclose-prefix-bot
+                                       block-comment-enclose-fill-bot
+                                       block-comment-enclose-postfix-bot)
+
+        (beginning-of-line)
+        (newline)
+        (forward-line -1)
+
+        ;; Insert body
         (block-comment--indent-accoring-to-previous-block-row)
 
         (block-comment--insert-line block-comment-width)
         (block-comment--init-row-boundries)
         (block-comment--jump-back)
 
-        ;; Insert bottom enclose
-        (save-excursion
-          (end-of-line)
-          (newline)
-          (block-comment--indent-accoring-to-previous-block-row)
-          (block-comment--insert-enclose block-comment-enclose-prefix-bot
-                                         block-comment-enclose-fill-bot
-                                         block-comment-enclose-postfix-bot)
-          )
         ;; return t
         t
         )
@@ -586,13 +590,14 @@
         (body-found nil)
         (enclose-top-found nil)
         (enclose-bot-found nil)
+        (lines-in-buffer (count-lines (point-min) (point-max)))
         )
 
     ;;-------------------------- Detect body style ------------------------------
 
-      ;; Detect block comment body style and set global symbols
-      (setq body-found (block-comment--detect-body-style 'block-comment-prefix
-                                                         'block-comment-postfix))
+    ;; Detect block comment body style and set global symbols
+    (setq body-found (block-comment--detect-body-style 'block-comment-prefix
+                                                       'block-comment-postfix))
 
     ;; Only try to find enclose if there is a block comment body
     (when body-found
@@ -603,8 +608,8 @@
         (while (progn
                  ;; Move up one line
                  (forward-line -1)
-                 ;; Continue if still in block comment body
-                 (block-comment--is-body nil)
+                 ;; Continue if still in block comment body and not at top of buffer
+                 (and (> (line-number-at-pos) 1) (block-comment--is-body nil))
                  )
           )
 
@@ -621,9 +626,9 @@
         ;; Move to row above block comment body
         (while (progn
                  ;; Move up one line
-                (forward-line 1)
-                 ;; Continue if still in block comment body
-                 (block-comment--is-body nil)
+                 (forward-line 1)
+                 ;; Continue if still in block comment body and not at bottom of buffer
+                 (and (< (line-number-at-pos) lines-in-buffer) (block-comment--is-body nil))
                  )
           )
 
@@ -651,7 +656,7 @@
     ;; Return t if style found, else nil
     body-found
     )
-)
+  )
 
 (defun block-comment--detect-body-style (body-prefix-symbol
                                          body-postfix-symbol)
@@ -669,8 +674,11 @@
   (let* (
          (start-pos nil)
          (end-pos nil)
+         (fill-margin-pos nil)
          (prefix "")
+         (prefix-fill "")
          (postfix "")
+         (postfix-fill "")
          )
 
     ;; Only try to detect if the line is not blank
@@ -685,8 +693,11 @@
           (setq end-pos (point-marker))
           (skip-syntax-backward "^ " (line-beginning-position))
           (setq start-pos (point-marker))
+          (backward-char block-comment-edge-offset)
+          (setq fill-margin-pos (point-marker))
 
           (setq postfix (buffer-substring start-pos end-pos))
+          (setq postfix-fill (buffer-substring start-pos fill-margin-pos))
           )
         )
 
@@ -699,15 +710,19 @@
           (setq start-pos (point-marker))
           (skip-syntax-forward "^ " (line-end-position))
           (setq end-pos (point-marker))
+          (forward-char block-comment-edge-offset)
+          (setq fill-margin-pos (point-marker))
 
           (setq prefix (buffer-substring start-pos end-pos))
+          (setq prefix-fill (buffer-substring end-pos fill-margin-pos))
           )
         )
       )
 
     ;; Only modify when prefix/postfix was found
     (if (and (> (string-width prefix) 0)
-             (> (string-width postfix) 0))
+             (> (string-width postfix) 0)
+             (string= prefix-fill postfix-fill))
         ;; If found, modify the given symbols and return t
         (progn
           (set body-prefix-symbol prefix)
@@ -746,27 +761,28 @@
     ;;-------------------------- Find fill ----------------------------------
     (setq enclose-fill (block-comment--detect-enclose-fill))
 
-    ;;-------------------------- Find prefix ----------------------------------
-    (setq enclose-prefix (block-comment--detect-enclose-prefix enclose-fill))
+    (when enclose-fill
+      ;;-------------------------- Find prefix ----------------------------------
+      (setq enclose-prefix (block-comment--detect-enclose-prefix enclose-fill))
 
-    ;;-------------------------- Find postfix ----------------------------------
-    (setq enclose-postfix (block-comment--detect-enclose-postfix enclose-fill))
+      ;;-------------------------- Find postfix ----------------------------------
+      (setq enclose-postfix (block-comment--detect-enclose-postfix enclose-fill))
 
-    ;;-------------------------- sanity check ----------------------------------
+      ;;-------------------------- sanity check ----------------------------------
 
-    ;; If all components were found, and is enclose returns true, set given
-    ;; symbols to the found values
-    (when (and enclose-prefix
-               enclose-fill
-               enclose-postfix
-               (block-comment--is-enclose enclose-prefix
-                                          enclose-fill
-                                          enclose-postfix))
+      ;; If all components were found, and is enclose returns true, set given
+      ;; symbols to the found values
+      (when (and enclose-prefix
+                 enclose-postfix
+                 (block-comment--is-enclose enclose-prefix
+                                            enclose-fill
+                                            enclose-postfix))
 
-      (set prefix-symbol enclose-prefix)
-      (set fill-symbol enclose-fill)
-      (set postfix-symbol enclose-postfix)
-      (setq enclose-found t)
+        (set prefix-symbol enclose-prefix)
+        (set fill-symbol enclose-fill)
+        (set postfix-symbol enclose-postfix)
+        (setq enclose-found t)
+        )
       )
 
     ;; Return t if found, else nil
@@ -789,15 +805,19 @@
     ;; Find block end
     (end-of-line)
     (skip-syntax-backward " " (line-beginning-position))
-    (setq block-end (current-column))
+    (when (equal (point-marker) (line-beginning-position))
+      (setq block-end (current-column))
+      )
 
     ;; Find block start
     (beginning-of-line)
     (skip-syntax-forward " " (line-end-position))
-    (setq block-start (current-column))
+    (when (equal (point-marker) (line-end-position))
+      (setq block-start (current-column))
+      )
 
     ;; If block end is less than block start, then the row is empty
-    (unless (< block-end block-start)
+    (when (and block-end block-start (> block-end block-start))
       ;; Jump to middle
       (setq block-middle (/ (- block-end block-start) 2))
       (forward-char block-middle)
@@ -1176,7 +1196,7 @@
       ;; body, or if the body is emtpy
       (when (and (block-comment--is-body)
                  (block-comment--has-comment))
-        (message "prev row has comment")
+
         (block-comment--jump-to-first-char-in-body)
         (setq prev-indent-start (current-column))
 
@@ -1790,23 +1810,19 @@
     ;; Select the current rows pre/postfix
     (cond ((block-comment--is-body)
            (progn
-             (message "is body")
              (setq prefix block-comment-prefix)
              (setq postfix block-comment-postfix))
            )
           ((block-comment--is-enclose-top)
            (progn
-             (message "is top")
              (setq prefix block-comment-enclose-prefix-top)
              (setq postfix block-comment-enclose-postfix-top))
            )
           ((block-comment--is-enclose-bot)
            (progn
-             (message "is bot")
              (setq prefix block-comment-enclose-prefix-bot)
              (setq postfix block-comment-enclose-postfix-bot))
            )
-          (t (message "not body at: %d" (line-number-at-pos)))
           )
 
     (cons prefix postfix)
@@ -1829,7 +1845,9 @@
 (defun block-comment--is-current-line-empty ()
   (interactive)
   """ Checks if current line contains any non ' ' characters                 """
-  (eq (string-match-p "\\`\\s-*$" (thing-at-point 'line)) 0))
+  (save-excursion
+    (beginning-of-line)
+    (looking-at-p "[[:blank:]]*$")))
 
 (defun block-comment--is-blank-line (&optional pos)
   """  Checks if line at pos/point is emtpy, returns t if so, else nil        """
