@@ -455,7 +455,6 @@
                            )
         )
 
-    (message "viable column: %d" max-viable-column)
     ;; Only insert comment if there is enough horizontal room
     (if (> max-viable-column (current-column))
         (progn
@@ -1578,7 +1577,6 @@
       )
 
     (setq indent-level (block-comment--get-indent-level prefix))
-    (message "indent level: %d" indent-level)
 
     (block-comment--move-line 1)
 
