@@ -444,47 +444,60 @@
   (if (= (line-number-at-pos) 1)
       (newline))
 
-  ;; Only insert comment if there is enough horizontal room
-  (if (> block-comment-width (current-column))
-      (progn
-
-        ;; Insert top enclose
-        (block-comment--insert-enclose block-comment-enclose-prefix-top
-                                       block-comment-enclose-fill-top
-                                       block-comment-enclose-postfix-top)
-
-        (newline)
-
-        ;; Insert bot enclose
-        (block-comment--indent-accoring-to-previous-block-row)
-        (block-comment--insert-enclose block-comment-enclose-prefix-bot
-                                       block-comment-enclose-fill-bot
-                                       block-comment-enclose-postfix-bot)
-
-        (beginning-of-line)
-        (newline)
-        (forward-line -1)
-
-        ;; Insert body
-        (block-comment--indent-accoring-to-previous-block-row)
-
-        (block-comment--insert-line block-comment-width)
-        (block-comment--init-row-boundries)
-        (block-comment--jump-back)
-
-        ;; return t
-        t
+  (let (
+        (max-viable-column (- block-comment-width
+                              (+
+                               (string-width block-comment-prefix)
+                               (string-width block-comment-postfix)
+                               (* block-comment-edge-offset 2)
+                               (/ block-comment-width 8)
+                               ))
+                           )
         )
-    (progn
-      (message "Not enough room to insert comment!")
-      ;; return nil
-      nil
-      )
-    ) ;; end if
+
+    (message "viable column: %d" max-viable-column)
+    ;; Only insert comment if there is enough horizontal room
+    (if (> max-viable-column (current-column))
+        (progn
+
+          ;; Insert top enclose
+          (block-comment--insert-enclose block-comment-enclose-prefix-top
+                                         block-comment-enclose-fill-top
+                                         block-comment-enclose-postfix-top)
+
+          (newline)
+
+          ;; Insert bot enclose
+          (block-comment--indent-accoring-to-previous-block-row)
+          (block-comment--insert-enclose block-comment-enclose-prefix-bot
+                                         block-comment-enclose-fill-bot
+                                         block-comment-enclose-postfix-bot)
+
+          (beginning-of-line)
+          (newline)
+          (forward-line -1)
+
+          ;; Insert body
+          (block-comment--indent-accoring-to-previous-block-row)
+
+          (block-comment--insert-line (- block-comment-width (current-column)))
+          (block-comment--init-row-boundries)
+          (block-comment--jump-back)
+
+          ;; return t
+          t
+          )
+      (progn
+        (message "Not enough room to insert comment!")
+        ;; return nil
+        nil
+        )
+      ) ;; end if
+    )
   )
 
 (defun block-comment-newline (&optional target-width)
-    (interactive)
+  (interactive)
   """ Inserts a new line and moves text to the right of point down"""
 
   (let (
@@ -1565,6 +1578,7 @@
       )
 
     (setq indent-level (block-comment--get-indent-level prefix))
+    (message "indent level: %d" indent-level)
 
     (block-comment--move-line 1)
 
