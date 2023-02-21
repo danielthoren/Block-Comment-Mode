@@ -8,7 +8,7 @@
 (add-to-list 'load-path "tests")
 (require 'block-comment-test-helpers)
 
-(describe "Test normal insert block comment"
+(describe "Test normal insert block comment: "
 
   (before-each
     (erase-buffer)
@@ -21,7 +21,7 @@
 
   (it "Test insert non-centering"
     (let(
-         (expected-string "\
+         (expected-string "
 /*******************************************************************************/
 /*                                                                             */
 /*******************************************************************************/
@@ -45,9 +45,17 @@
       (whitespace-cleanup)
 
       (setq result-string (buffer-string))
+
+      ;; Append newline at top for better error message
+      (setq result-string (concat "\n" result-string))
+
       ;; Append newline at end since the templates have this. Emacs
       ;; automatically adds this when saving
       (setq result-string (concat result-string "\n"))
+
+      ;; Make strings easier to read in terminal
+      (setq expected-string (make-whitespace-readable expected-string))
+      (setq result-string (make-whitespace-readable result-string))
 
       (expect result-string :to-equal expected-string)
       (expect (line-number-at-pos) :to-be 2)
@@ -57,7 +65,7 @@
 
   (it "Test insert centering"
     (let(
-         (expected-string "\
+         (expected-string "
 /*******************************************************************************/
 /*                                                                             */
 /*******************************************************************************/
@@ -82,9 +90,17 @@
       (whitespace-cleanup)
 
       (setq result-string (buffer-string))
+
+      ;; Append newline at top for better error message
+      (setq result-string (concat "\n" result-string))
+
       ;; Append newline at end since the templates have this. Emacs
       ;; automatically adds this when saving
       (setq result-string (concat result-string "\n"))
+
+      ;; Make strings easier to read in terminal
+      (setq expected-string (make-whitespace-readable expected-string))
+      (setq result-string (make-whitespace-readable result-string))
 
       (expect result-string :to-equal expected-string)
       (expect (line-number-at-pos) :to-be 2)
@@ -95,7 +111,7 @@
   (it "Test insert indented"
     (let(
          (indent 2)
-         (expected-string "\
+         (expected-string "
   /*****************************************************************************/
   /*                                                                           */
   /*****************************************************************************/
@@ -118,9 +134,17 @@
       (whitespace-cleanup)
 
       (setq result-string (buffer-string))
+
+      ;; Append newline at top for better error message
+      (setq result-string (concat "\n" result-string))
+
       ;; Append newline at end since the templates have this. Emacs
       ;; automatically adds this when saving
       (setq result-string (concat result-string "\n"))
+
+      ;; Make strings easier to read in terminal
+      (setq expected-string (make-whitespace-readable expected-string))
+      (setq result-string (make-whitespace-readable result-string))
 
       (expect result-string :to-equal expected-string)
       (expect (line-number-at-pos) :to-be 2)
@@ -144,6 +168,8 @@
                                          "/*"   " "   "*/"
                                          "/*"   "*"   "*/" )
 
+      (setq-default indent-tabs-mode nil)
+
       (insert (make-string indent (string-to-char " ")))
 
       ;; Insert block comment
@@ -162,13 +188,13 @@
       ;; automatically adds this when saving
       (setq result-string (concat result-string "\n"))
 
-      (message "%s" expected-string)
-      (message "-------------------")
-      (message "%s" result-string)
+      ;; Make strings easier to read in terminal
+      (setq expected-string (make-whitespace-readable expected-string))
+      (setq result-string (make-whitespace-readable result-string))
 
       (expect result-string :to-equal expected-string)
-      ;; (expect (line-number-at-pos) :to-be 2)
-      ;; (expect (current-column) :to-be (+ 4 indent))
+      (expect (line-number-at-pos) :to-be 2)
+      (expect (current-column) :to-be (+ 4 indent))
       )
     )
 
@@ -178,7 +204,7 @@
 
   (it "Test c++ insert (symetrical)"
     (let(
-         (expected-string "\
+         (expected-string "
 /*******************************************************************************/
 /*                                                                             */
 /*******************************************************************************/
@@ -199,17 +225,27 @@
       (whitespace-cleanup)
 
       (setq result-string (buffer-string))
+
+      ;; Append newline at top for better error message
+      (setq result-string (concat "\n" result-string))
+
       ;; Append newline at end since the templates have this. Emacs
       ;; automatically adds this when saving
       (setq result-string (concat result-string "\n"))
 
+      ;; Make strings easier to read in terminal
+      (setq expected-string (make-whitespace-readable expected-string))
+      (setq result-string (make-whitespace-readable result-string))
+
       (expect result-string :to-equal expected-string)
+      (expect (line-number-at-pos) :to-be 2)
+      (expect (current-column) :to-be 4)
       )
     )
 
   (it "Test c++ insert (non-symetrical)"
     (let(
-         (expected-string "\
+         (expected-string "
 /********************************************************************************
  ***                                                                          ***
  *******************************************************************************/
@@ -232,17 +268,27 @@
       (whitespace-cleanup)
 
       (setq result-string (buffer-string))
+
+      ;; Append newline at top for better error message
+      (setq result-string (concat "\n" result-string))
+
       ;; Append newline at end since the templates have this. Emacs
       ;; automatically adds this when saving
       (setq result-string (concat result-string "\n"))
 
+      ;; Make strings easier to read in terminal
+      (setq expected-string (make-whitespace-readable expected-string))
+      (setq result-string (make-whitespace-readable result-string))
+
       (expect result-string :to-equal expected-string)
+      (expect (line-number-at-pos) :to-be 2)
+      (expect (current-column) :to-be 6)
       )
     )
 
   (it "Test python insert"
     (let(
-         (expected-string "\
+         (expected-string "
 #################################################################################
 \"\"\"                                                                           \"\"\"
 #################################################################################
@@ -263,17 +309,27 @@
       (whitespace-cleanup)
 
       (setq result-string (buffer-string))
+
+      ;; Append newline at top for better error message
+      (setq result-string (concat "\n" result-string))
+
       ;; Append newline at end since the templates have this. Emacs
       ;; automatically adds this when saving
       (setq result-string (concat result-string "\n"))
 
+      ;; Make strings easier to read in terminal
+      (setq expected-string (make-whitespace-readable expected-string))
+      (setq result-string (make-whitespace-readable result-string))
+
       (expect result-string :to-equal expected-string)
+      (expect (line-number-at-pos) :to-be 2)
+      (expect (current-column) :to-be 5)
       )
     )
 
   (it "Test elisp insert"
     (let(
-         (expected-string "\
+         (expected-string "
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 \"\"\"                                                                           \"\"\"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -294,17 +350,27 @@
       (whitespace-cleanup)
 
       (setq result-string (buffer-string))
+
+      ;; Append newline at top for better error message
+      (setq result-string (concat "\n" result-string))
+
       ;; Append newline at end since the templates have this. Emacs
       ;; automatically adds this when saving
       (setq result-string (concat result-string "\n"))
 
+      ;; Make strings easier to read in terminal
+      (setq expected-string (make-whitespace-readable expected-string))
+      (setq result-string (make-whitespace-readable result-string))
+
       (expect result-string :to-equal expected-string)
+      (expect (line-number-at-pos) :to-be 2)
+      (expect (current-column) :to-be 5)
       )
     )
 
   (it "Test bash insert"
     (let(
-         (expected-string "\
+         (expected-string "
 #################################################################################
 #                                                                               #
 #################################################################################
@@ -325,11 +391,21 @@
       (whitespace-cleanup)
 
       (setq result-string (buffer-string))
+
+      ;; Append newline at top for better error message
+      (setq result-string (concat "\n" result-string))
+
       ;; Append newline at end since the templates have this. Emacs
       ;; automatically adds this when saving
       (setq result-string (concat result-string "\n"))
 
+      ;; Make strings easier to read in terminal
+      (setq expected-string (make-whitespace-readable expected-string))
+      (setq result-string (make-whitespace-readable result-string))
+
       (expect result-string :to-equal expected-string)
+      (expect (line-number-at-pos) :to-be 2)
+      (expect (current-column) :to-be 3)
       )
     )
 
@@ -341,11 +417,13 @@
     (let(
          (expected-string "")
          (result-string "")
+         (start-pos nil)
          )
 
       (newline)
       (insert "random string")
 
+      (setq start-pos (point-marker))
       (setq expected-string (buffer-string))
 
       ;; Init python block comment style
@@ -360,6 +438,7 @@
       (setq result-string (buffer-string))
 
       (expect result-string :to-equal expected-string)
+      (expect (point-marker) :to-equal start-pos)
       )
     )
 
@@ -367,11 +446,13 @@
     (let(
          (expected-string "")
          (result-string "")
+         (start-pos nil)
          )
 
       (newline)
       (insert "** Almost looks like block comment  **")
 
+      (setq start-pos (point-marker))
       (setq expected-string (buffer-string))
 
       ;; Init python block comment style
@@ -386,6 +467,7 @@
       (setq result-string (buffer-string))
 
       (expect result-string :to-equal expected-string)
+      (expect (point-marker) :to-equal start-pos)
       )
     )
 
@@ -393,11 +475,13 @@
     (let(
          (expected-string "")
          (result-string "")
+         (start-pos nil)
          )
 
       (newline)
       (insert "**  Almost looks almost like block comment **")
 
+      (setq start-pos (point-marker))
       (setq expected-string (buffer-string))
 
       ;; Init python block comment style
@@ -412,6 +496,7 @@
       (setq result-string (buffer-string))
 
       (expect result-string :to-equal expected-string)
+      (expect (point-marker) :to-equal start-pos)
       )
     )
   )
