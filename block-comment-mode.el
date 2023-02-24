@@ -817,16 +817,16 @@
     ;; Find block end
     (end-of-line)
     (skip-syntax-backward " " (line-beginning-position))
-    (when (equal (point-marker) (line-beginning-position))
+    ;; (when (equal (point-marker) (line-beginning-position))
       (setq block-end (current-column))
-      )
+      ;; )
 
     ;; Find block start
     (beginning-of-line)
     (skip-syntax-forward " " (line-end-position))
-    (when (equal (point-marker) (line-end-position))
+    ;; (when (equal (point-marker) (line-end-position))
       (setq block-start (current-column))
-      )
+      ;; )
 
     ;; If block end is less than block start, then the row is empty
     (when (and block-end block-start (> block-end block-start))
@@ -1345,7 +1345,6 @@
              (setq is-body (block-comment--is-body nil))
              (setq is-enclose-top (block-comment--is-enclose-top nil))
              (setq is-enclose-bot (block-comment--is-enclose-bot nil))
-
              ;; Exit if not in body
              (or is-body is-enclose-top is-enclose-bot)
              )
@@ -1355,22 +1354,22 @@
 
       ;; When normal block comment line
       (save-excursion
-      (cond (is-body
-             (block-comment--align-body-width width-diff
-                                              block-comment-fill))
+        (cond (is-body
+               (block-comment--align-body-width width-diff
+                                                block-comment-fill))
 
-            ;; else if: enclose-top
-            (is-enclose-top
-             (block-comment--align-enclose-width width-diff
-                                                 block-comment-enclose-fill-top))
+              ;; else if: enclose-top
+              (is-enclose-top
+               (block-comment--align-enclose-width width-diff
+                                                   block-comment-enclose-fill-top))
 
-            ;; else if: enclose-bot
-            (is-enclose-bot
-             (block-comment--align-enclose-width width-diff
-                                                 block-comment-enclose-fill-bot))
-            ))
-      ) ;; end while
-    )
+              ;; else if: enclose-bot
+              (is-enclose-bot
+                (block-comment--align-enclose-width width-diff
+                                                    block-comment-enclose-fill-bot))
+               ))
+        ) ;; end while
+      )
   )
 
 (defun block-comment--align-body-width (width-diff fill)
@@ -1918,6 +1917,7 @@
   (let (
         (match-signature nil)
         (has-body-beneath nil)
+        (has-body-above nil)
         )
     (setq match-signature (block-comment--is-enclose block-comment-enclose-prefix-bot
                                                      block-comment-enclose-fill-bot
@@ -1929,7 +1929,12 @@
       (setq has-body-beneath (block-comment--is-body))
       )
 
-    (and match-signature (not has-body-beneath))
+    (save-excursion
+      (forward-line -1)
+      (setq has-body-above (block-comment--is-body))
+      )
+
+    (and match-signature has-body-above (not has-body-beneath))
     )
   )
 
@@ -1961,29 +1966,39 @@
         (block-end nil)
         (enclose-body nil)
         (enclose-body-template nil)
+        (encountered-error nil)
         )
     (when is-comment
-      (save-excursion
-        ;; Make sure there is only fill characters in-between prefix/postfix
-        (beginning-of-line)
-        (skip-syntax-forward " " (line-end-position))
-        (forward-char (+ 1 (string-width prefix)))
-        (setq block-start (point-marker))
+      (condition-case nil
+          (save-excursion
+            ;; Make sure there is only fill characters in-between prefix/postfix
+            (beginning-of-line)
+            (skip-syntax-forward " " (line-end-position))
+            (forward-char (+ 1 (string-width prefix)))
+            (setq block-start (point-marker))
 
-        (end-of-line)
-        (skip-syntax-backward " " (line-beginning-position))
-        (backward-char (+ 2 (string-width postfix)))
-        (setq block-end (point-marker))
+            (end-of-line)
+            (skip-syntax-backward " " (line-beginning-position))
+            (backward-char (+ 2 (string-width postfix)))
+            (setq block-end (point-marker))
+            )
+        ;; ((end-of-buffer beginning-of-buffer)
+        (error
+         (setq encountered-error t)
+         (message "block-comment--is-enclose: Encountered end-of-buffer or end-of-line")
+         )
         )
 
-      (setq enclose-body (buffer-substring block-start block-end))
-      (setq enclose-body-template (make-string (string-width enclose-body)
-                                               (string-to-char fill)))
+      (unless encountered-error
+        (setq enclose-body (buffer-substring block-start block-end))
+        (setq enclose-body-template (make-string (string-width enclose-body)
+                                                 (string-to-char fill)))
 
-      ;; If the entire enclose body contains the fill character,
-      ;; the current line containes enclose, return t, else nil
-      (when (string= enclose-body-template enclose-body)
-        (setq is-enclose t)
+        ;; If the entire enclose body contains the fill character,
+        ;; the current line containes enclose, return t, else nil
+        (when (string= enclose-body-template enclose-body)
+          (setq is-enclose t)
+          )
         )
       )
     ;; Return if this is enclose
