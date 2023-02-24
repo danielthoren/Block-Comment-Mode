@@ -1,5 +1,7 @@
+
 (defun file-to-string (file)
-  "File to string function"
+  """  Reads the given file and puts it into the buffer, then returns         """
+  """  the buffer string                                                      """
   (with-temp-buffer
     (insert-file-contents file)
     (buffer-string)))

@@ -198,6 +198,39 @@
       )
     )
 
+(it "Test insert when not enough room"
+    (let(
+         (indent 62)
+         (expected-string "")
+         (result-string "")
+         )
+
+      ;; Init c++ block comment style
+      (block-comment--init-comment-style 80
+                                         "/*"   " "   "*/"
+                                         "/*"   "*"   "*/" )
+
+      (setq-default indent-tabs-mode nil)
+
+      (insert (make-string indent (string-to-char " ")))
+      (setq expected-string (buffer-string))
+
+      ;; Insert block comment
+      (block-comment-start)
+      (block-comment-abort)
+
+      (setq result-string (buffer-string))
+
+      ;; Make strings easier to read in terminal
+      (setq expected-string (make-whitespace-readable expected-string))
+      (setq result-string (make-whitespace-readable result-string))
+
+      (expect result-string :to-equal expected-string)
+      (expect (line-number-at-pos) :to-be 2)
+      (expect (current-column) :to-be  indent)
+      )
+    )
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 """                 Test normal inserts for common languages                  """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -422,64 +455,6 @@
 
       (newline)
       (insert "random string")
-
-      (setq start-pos (point-marker))
-      (setq expected-string (buffer-string))
-
-      ;; Init python block comment style
-      (block-comment--init-comment-style 80
-                                         "#"   " "   "#"
-                                         "#"   "#"   "#")
-
-      ;; Insert block comment
-      (block-comment-start)
-      (block-comment-abort)
-
-      (setq result-string (buffer-string))
-
-      (expect result-string :to-equal expected-string)
-      (expect (point-marker) :to-equal start-pos)
-      )
-    )
-
-  (it "Test insert on line that looks almost like block comment, type 1"
-    (let(
-         (expected-string "")
-         (result-string "")
-         (start-pos nil)
-         )
-
-      (newline)
-      (insert "** Almost looks like block comment  **")
-
-      (setq start-pos (point-marker))
-      (setq expected-string (buffer-string))
-
-      ;; Init python block comment style
-      (block-comment--init-comment-style 80
-                                         "#"   " "   "#"
-                                         "#"   "#"   "#")
-
-      ;; Insert block comment
-      (block-comment-start)
-      (block-comment-abort)
-
-      (setq result-string (buffer-string))
-
-      (expect result-string :to-equal expected-string)
-      (expect (point-marker) :to-equal start-pos)
-      )
-    )
-
-  (it "Test insert on line that looks like block comment, type 2"
-    (let(
-         (expected-string "")
-         (result-string "")
-         (start-pos nil)
-         )
-
-      (newline)
-      (insert "**  Almost looks almost like block comment **")
 
       (setq start-pos (point-marker))
       (setq expected-string (buffer-string))
