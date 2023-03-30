@@ -20,6 +20,9 @@
 ;; FIXME: Bug when using centering mode. Does not swap every other letter,
 ;;        instead swapping every few letters
 
+;; TODO: Detect style assumes that current row is of body type.
+;;        Should detect if it is body or pre/postfix line
+
 ;; TODO: Fix all warning when building with cask
 
 ;; TODO: Look over how local variables are managed:
@@ -441,8 +444,8 @@
 
   ;; If at the top of the buffer, insert new line before inserting
   ;; block comment to avoid truncating the comment
-  (if (= (line-number-at-pos) 1)
-      (newline))
+  ;; (if (= (line-number-at-pos) 1)
+  ;;     (newline))
 
   (let (
         (max-viable-column (- block-comment-width
@@ -602,7 +605,8 @@
         (body-found nil)
         (enclose-top-found nil)
         (enclose-bot-found nil)
-        (lines-in-buffer (count-lines (point-min) (point-max)))
+        (lines-in-buffer (block-comment--get-line-count-in-buffer))
+        (at-bottom nil)
         )
 
     ;;-------------------------- Detect body style ------------------------------
@@ -620,8 +624,10 @@
         (while (progn
                  ;; Move up one line
                  (forward-line -1)
+
                  ;; Continue if still in block comment body and not at top of buffer
-                 (and (> (line-number-at-pos) 1) (block-comment--is-body nil))
+                 (and (not (block-comment--is-at-buffer-top))
+                      (block-comment--is-body nil))
                  )
           )
 
@@ -639,8 +645,13 @@
         (while (progn
                  ;; Move up one line
                  (forward-line 1)
+
+                 ;; Check if at bottom of buffer
+                 (setq at-bottom (block-comment--is-at-buffer-bottom lines-in-buffer))
+
                  ;; Continue if still in block comment body and not at bottom of buffer
-                 (and (< (line-number-at-pos) lines-in-buffer) (block-comment--is-body nil))
+                 (and at-bottom
+                      (block-comment--is-body nil))
                  )
           )
 
@@ -691,12 +702,12 @@
          (prefix-fill "")
          (postfix "")
          (postfix-fill "")
+         (encountered-error nil)
          )
 
     ;; Only try to detect if the line is not blank
     (unless (block-comment--is-blank-line)
 
-      ;; Find postfix
       (save-excursion
         (end-of-line)
         (skip-syntax-backward " " (line-beginning-position))
@@ -732,7 +743,8 @@
       )
 
     ;; Only modify when prefix/postfix was found
-    (if (and (> (string-width prefix) 0)
+    (if (and (not encountered-error)
+             (> (string-width prefix) 0)
              (> (string-width postfix) 0)
              (string= prefix-fill postfix-fill))
         ;; If found, modify the given symbols and return t
@@ -1324,6 +1336,8 @@
     )
   )
 
+;; TODO: Make this function start at the current row. Otherwise it will not support
+;; when the block comment is at the bottom of the buffer
 (defun block-comment--adjust-rows-above-to-target-width (target-width)
   """  Aligns all block comment rows above to the given target width           """
   """  Param 'target-width': The width to align to                             """
@@ -1333,6 +1347,7 @@
         (is-body nil)
         (is-enclose-top nil)
         (is-enclose-bot nil)
+        (at-top nil)
         )
 
     ;; Align all block comment rows above
@@ -1345,8 +1360,10 @@
              (setq is-body (block-comment--is-body nil))
              (setq is-enclose-top (block-comment--is-enclose-top nil))
              (setq is-enclose-bot (block-comment--is-enclose-bot nil))
-             ;; Exit if not in body
-             (or is-body is-enclose-top is-enclose-bot)
+
+             ;; Exit if not in body or if at top of buffer
+             (and (not at-top)
+                  (or is-body is-enclose-top is-enclose-bot))
              )
 
       (setq curr-width (block-comment--get-comment-width))
@@ -1365,11 +1382,16 @@
 
               ;; else if: enclose-bot
               (is-enclose-bot
-                (block-comment--align-enclose-width width-diff
-                                                    block-comment-enclose-fill-bot))
-               ))
-        ) ;; end while
-      )
+               (block-comment--align-enclose-width width-diff
+                                                   block-comment-enclose-fill-bot))
+              ))
+
+      ;; Check if at top after performing logic in order to process the top
+      ;; line before breaking the while loop
+      (setq at-top (block-comment--is-at-buffer-top))
+
+      ) ;; end while
+    )
   )
 
 (defun block-comment--align-body-width (width-diff fill)
@@ -1678,6 +1700,12 @@
 """                            Get functions                                  """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun block-comment--get-line-count-in-buffer ()
+  """  Gets the number of lines in the current buffer                        """
+  """  -> Return: The number of lines in the current buffer                  """
+  (count-lines (point-min) (point-max))
+  )
+
 (defun block-comment--get-widest-comment-text ()
   """  Finds the width of the widest block comment text above point and        """
   """  returns said width. The block comment text is the actual user text      """
@@ -1685,20 +1713,25 @@
   (let (
         (widest-width 0)
         (curr-width 0)
+        (at-top nil)
         )
 
     (save-excursion
       ;; Jump to the last non-postfix row in the block comment
       (block-comment--jump-to-last-comment-row 0 t)
 
-      (while (progn
-               ;; Check if this is body or enclose
-               (block-comment--is-body nil)
-               )
+      ;; Get widest comment text
+      (while (and (not at-top)
+                  (block-comment--is-body nil))
+
         (setq curr-width (block-comment--get-comment-text-width))
         (when (> curr-width widest-width)
           (setq widest-width curr-width)
           )
+
+        ;; Check if at top after performing logic in order to process the top
+        ;; line before breaking the while loop
+        (setq at-top (block-comment--is-at-buffer-top))
 
         ;; Move up one line
         (forward-line -1)
@@ -1716,21 +1749,26 @@
   (let (
         (rightmost-column 0)
         (curr-column 0)
+        (at-top nil)
         )
 
     (save-excursion
       ;; Jump to the last non-postfix row in the block comment
       (block-comment--jump-to-last-comment-row 0 t)
 
-      (while (progn
-               ;; Check if this is body or enclose
-               (block-comment--is-body nil)
-               )
+      ;; Get right most text column position
+      (while (and (not at-top)
+                  (block-comment--is-body nil))
+
         (block-comment--jump-to-last-char-in-body 0)
         (setq curr-column (current-column))
         (when (> curr-column rightmost-column)
           (setq rightmost-column curr-column)
           )
+
+        ;; Check if at top after performing logic in order to process the top
+        ;; line before breaking the while loop
+        (setq at-top (block-comment--is-at-buffer-top))
 
         ;; Move up one line
         (forward-line -1)
@@ -1853,6 +1891,23 @@
 """     -> Functions that check if current row is block comment of type x     """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun block-comment--is-at-buffer-top ()
+  """  Checks if point is at the first line in the current buffer            """
+  """  -> Return: t if current pos is at the first line, else nil            """
+  (equal (line-number-at-pos) 1)
+  )
+
+(defun block-comment--is-at-buffer-bottom (&optional lines-in-buffer)
+  """  Checks if point is at the last line in the current buffer             """
+  """  Param 'lines-in-buffer' : The number of lines in the current buffer.  """
+  """                            Can be sent as a parameter to minimize the  """
+  """                            the number of times this value needs to be  """
+  """                            calculated.                                 """
+  """  -> Return: t if current pos is at the last line, else nil             """
+  (unless lines-in-buffer (setq lines-in-buffer (block-comment--get-line-count-in-buffer)))
+  (< (line-number-at-pos) lines-in-buffer)
+  )
+
 (defun block-comment--is-current-line-empty ()
   (interactive)
   """ Checks if current line contains any non ' ' characters                 """
@@ -1864,7 +1919,7 @@
   """  Checks if line at pos/point is emtpy, returns t if so, else nil        """
   """  Param 'pos' : The marker position to check                             """
   """                default: (point)                                         """
-  """  -> Return: t if line is blank, else nil                              """
+  """  -> Return: t if line is blank, else nil                                """
   (save-excursion
     (goto-char (or pos (point)))
     (beginning-of-line)
@@ -1872,7 +1927,7 @@
        (progn (skip-syntax-forward " ") (point)))))
 
 (defun block-comment--is-enclose-top (&optional inside-body)
-  """ Checks if the current row follows the format of a block comment         """
+  """  Checks if the current row follows the format of a block comment        """
   """  top enclose                                                            """
   """  Param 'inside': specifies if point is required to be inside of the     """
   """                body or not:                                             """
@@ -1887,11 +1942,11 @@
         )
 
     ;; Insert new line if at top of buffer
-    (when (equal (line-number-at-pos) 1)
-      (beginning-of-line)
-      (newline)
-      (forward-char start-column)
-      )
+    ;; (when (equal (line-number-at-pos) 1)
+    ;;   (beginning-of-line)
+    ;;   (newline)
+    ;;   (forward-char start-column)
+    ;;   )
 
     (setq match-signature (block-comment--is-enclose block-comment-enclose-prefix-top
                                                      block-comment-enclose-fill-top
@@ -1982,7 +2037,7 @@
             (backward-char (+ 2 (string-width postfix)))
             (setq block-end (point-marker))
             )
-        ;; ((end-of-buffer beginning-of-buffer)
+        ;; ((end-of-buffer beginning-of-buffer) ;; TODO: Add specific handling
         (error
          (setq encountered-error t)
          (message "block-comment--is-enclose: Encountered end-of-buffer or end-of-line")
@@ -2105,6 +2160,7 @@
 
   (unless prefix (setq prefix (block-comment--get-row-prefix)))
 
+  ;; TODO: Why this check?
   (when (> (line-number-at-pos) 0)
     (block-comment--jump-to-body-start (- 0 (string-width prefix)) prefix)
     )
@@ -2309,8 +2365,10 @@
         (is-body nil)
         (is-enclose-top nil)
         (is-enclose-bot nil)
+        (lines-in-buffer (block-comment--get-line-count-in-buffer))
+        (at-bottom nil)
         )
-    ;; Move to line below bottom of block commente
+    ;; Move to line below bottom of block comment
     (while (progn
              ;; Move down one line
              (forward-line 1)
@@ -2321,14 +2379,19 @@
              (unless stop-before-postfix
                (setq is-enclose-bot (block-comment--is-enclose-bot nil)))
 
-             ;; Exit if not in comment
-             (or is-body is-enclose-top is-enclose-bot)
+             (setq at-bottom (block-comment--is-at-buffer-bottom lines-in-buffer))
+             ;; Exit if not in comment or if at bottom of buffer
+             (and (not at-bottom)
+                  (or is-body is-enclose-top is-enclose-bot))
              )
       )
-    )
 
-  ;; Move back up to last comment row
-  (forward-line -1)
+    ;; Move back up to last comment row if necessary
+    (unless at-bottom
+      (forward-line -1)
+      )
+
+    )
 
   ;; Move according to offset
   (block-comment--move-line offset)

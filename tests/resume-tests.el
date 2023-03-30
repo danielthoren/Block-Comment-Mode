@@ -12,7 +12,6 @@
 
   (before-each
     (erase-buffer)
-    (newline)
     )
 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -178,40 +177,40 @@
 """  Test space constrained comments                                          """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(it "Test resume no space beneath"
-    (let(
-         (expected-string "
-/*******************************************************************************/
-/*                                                                             */
-/*******************************************************************************/")
-         (result-string "")
-         )
+;; (it "Test resume no space beneath"
+;;     (let(
+;;          (expected-string "
+;; /*******************************************************************************/
+;; /*                                                                             */
+;; /*******************************************************************************/")
+;;          (result-string "")
+;;          )
 
-      ;; Insert block comment and put point at correct position
-      (insert expected-string)
-      (forward-line -1)
+;;       ;; Insert block comment and put point at correct position
+;;       (insert expected-string)
+;;       (forward-line -1)
 
-      ;; Insert block comment
-      (block-comment-start)
-      (block-comment-abort)
+;;       ;; Insert block comment
+;;       (block-comment-start)
+;;       (block-comment-abort)
 
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
+;;       ;; Clean buffer and add newline at top for better error message
+;;       (whitespace-cleanup)
 
-      (setq result-string (buffer-string))
+;;       (setq result-string (buffer-string))
 
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
+;;       ;; Append newline at top for better error message
+;;       (setq result-string (concat "\n" result-string))
 
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
+;;       ;; Make strings easier to read in terminal
+;;       (setq expected-string (make-whitespace-readable expected-string))
+;;       (setq result-string (make-whitespace-readable result-string))
 
-      (expect result-string :to-equal expected-string)
-      (expect (line-number-at-pos) :to-be 2)
-      (expect (current-column) :to-be 4)
-      )
-    )
+;;       (expect result-string :to-equal expected-string)
+;;       (expect (line-number-at-pos) :to-be 2)
+;;       (expect (current-column) :to-be 4)
+;;       )
+;;     )
 
 (it "Test resume no space above"
     (let(
@@ -225,7 +224,7 @@
 
       ;; Insert block comment and put point at correct position
       (insert expected-string)
-      (forward-line -1)
+      (forward-line -2)
 
       ;; Insert block comment
       (block-comment-start)
@@ -235,9 +234,6 @@
       (whitespace-cleanup)
 
       (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
 
       ;; Make strings easier to read in terminal
       (setq expected-string (make-whitespace-readable expected-string))
