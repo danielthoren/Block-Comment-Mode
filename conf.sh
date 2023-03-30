@@ -20,3 +20,6 @@ if ! command_exists cask ; then
 
     cask
 fi
+
+echo "Installing cask dependencies..."
+cask install
