@@ -21,7 +21,14 @@
 ;;        instead swapping every few letters
 
 ;; TODO: Detect style assumes that current row is of body type.
-;;        Should detect if it is body or pre/postfix line
+;;       Should detect if it is body or pre/postfix line
+
+;; TODO: Many functions assume that we have space above/beneath the comment.
+;;       This assumption should not be made
+
+;; TODO: Test extensively, then tag for release 1 (write unit tests)
+
+
 
 ;; TODO: Fix all warning when building with cask
 
@@ -31,8 +38,6 @@
 ;;              style has been detected and set. Should this even work?
 ;;      TODO: Look over variable defenitions, should these happen in the define
 ;;            -minor-mode? Now they are re-defined regularly in default-init-variables
-
-;; TODO: Test extensively, then tag for release 1
 
 ;; TODO: Swap argument order for init-comment-style to take preamble row first, then body
 

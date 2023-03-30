@@ -12,7 +12,6 @@
 
   (before-each
     (erase-buffer)
-    (newline)
     )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -202,6 +201,8 @@
     (let(
          (indent 62)
          (expected-string "")
+         (expected-line-number nil)
+
          (result-string "")
          )
 
@@ -214,6 +215,7 @@
 
       (insert (make-string indent (string-to-char " ")))
       (setq expected-string (buffer-string))
+      (setq expected-line-number (line-number-at-pos))
 
       ;; Insert block comment
       (block-comment-start)
@@ -226,7 +228,7 @@
       (setq result-string (make-whitespace-readable result-string))
 
       (expect result-string :to-equal expected-string)
-      (expect (line-number-at-pos) :to-be 2)
+      (expect (line-number-at-pos) :to-be expected-line-number)
       (expect (current-column) :to-be  indent)
       )
     )

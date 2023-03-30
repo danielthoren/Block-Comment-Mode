@@ -22,7 +22,7 @@
     (let(
          (expected-string "
 /*******************************************************************************/
-/*                                                                             */
+/*                                                                             */p
 /*******************************************************************************/
 ")
          (result-string "")
@@ -30,7 +30,8 @@
 
       ;; Insert block comment and put point at correct position
       (insert expected-string)
-      (forward-line -2)
+      (jump-to-p nil t)
+      (setq expected-string (remove-p expected-string))
 
       ;; Insert block comment
       (block-comment-start)
@@ -58,7 +59,7 @@
     (let(
          (expected-string "
 /*******************************************************************************/
-/*                                                                             */
+/*                                                                             */p
 /*******************************************************************************/
 ")
          (result-string "")
@@ -66,7 +67,8 @@
 
       ;; Insert block comment and put point at correct position
       (insert expected-string)
-      (forward-line -2)
+      (jump-to-p nil t)
+      (setq expected-string (remove-p expected-string))
 
       ;; Set centering to t
       (block-comment-toggle-centering)
@@ -100,7 +102,7 @@
     (let(
          (expected-string "
 /*******************************************************************************/
-/*                 has comment text                                            */
+/*                 has comment text                                            */p
 /*******************************************************************************/
 ")
          (result-string "")
@@ -108,7 +110,8 @@
 
       ;; Insert block comment and put point at correct position
       (insert expected-string)
-      (forward-line -2)
+      (jump-to-p nil t)
+      (setq expected-string (remove-p expected-string))
 
       ;; Insert block comment
       (block-comment-start)
@@ -141,7 +144,7 @@
 ")
          (start-string "
 /**************************************************/
-/*                                                             */
+/*                                                             */p
 /*******************************************************************/
 ")
          (result-string "")
@@ -149,7 +152,7 @@
 
       ;; Insert block comment and put point at correct position
       (insert start-string)
-      (forward-line -2)
+      (jump-to-p nil t)
 
       ;; Insert block comment
       (block-comment-start)
@@ -216,7 +219,7 @@
     (let(
          (expected-string "\
 /*******************************************************************************/
-/*                                                                             */
+/*                                                                             */p
 /*******************************************************************************/
 ")
          (result-string "")
@@ -224,7 +227,8 @@
 
       ;; Insert block comment and put point at correct position
       (insert expected-string)
-      (forward-line -2)
+      (jump-to-p nil t)
+      (setq expected-string (remove-p expected-string))
 
       ;; Insert block comment
       (block-comment-start)
@@ -251,14 +255,14 @@
 /*                                                                             */
 ")
          (start-string "
-/*                                                      */
+/*                                                      */p
 ")
          (result-string "")
          )
 
       ;; Insert block comment and put point at correct position
-      (insert expected-string)
-      (forward-line -1)
+      (insert start-string)
+      (jump-to-p nil t)
 
       ;; Insert block comment
       (block-comment-start)
@@ -294,7 +298,8 @@
          )
 
       (newline)
-      (insert "** Almost looks like block comment  **")
+      (insert "** Almost looks like block comment  **p")
+      (jump-to-p nil t)
 
       (setq start-pos (point-marker))
       (setq expected-string (buffer-string))
@@ -323,7 +328,8 @@
          )
 
       (newline)
-      (insert "**  Almost looks almost like block comment **")
+      (insert "**  Almost looks almost like block comment **p")
+      (jump-to-p nil t)
 
       (setq start-pos (point-marker))
       (setq expected-string (buffer-string))
