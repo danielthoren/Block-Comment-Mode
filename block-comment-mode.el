@@ -238,7 +238,7 @@
           (setq inserted (block-comment--insert))
         ;; If not empty, print error message
         (progn
-          (message "Line is not empty!")
+          (block-comment--message "Line is not empty!")
           (setq inserted nil)
           ))
       )
@@ -495,7 +495,7 @@
           t
           )
       (progn
-        (message "Not enough room to insert comment!")
+        (block-comment--message "Not enough room to insert comment!")
         ;; return nil
         nil
         )
@@ -2045,7 +2045,7 @@
         ;; ((end-of-buffer beginning-of-buffer) ;; TODO: Add specific handling
         (error
          (setq encountered-error t)
-         (message "block-comment--is-enclose: Encountered end-of-buffer or end-of-line")
+         (block-comment--error "block-comment--is-enclose: Encountered end-of-buffer" "BC: end-of-buffer")
          )
         )
 
@@ -2400,6 +2400,46 @@
 
   ;; Move according to offset
   (block-comment--move-line offset)
+  )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+"""                               General Util                                """
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun block-comment--unit-tests-running ()
+  (and (boundp block-comment--unit-tests)
+       block-comment--unit-tests)
+  )
+
+(defun block-comment--message (messageStr)
+  (when (not (block-comment--unit-tests-running))
+    (message messageStr)
+    )
+  )
+
+(defun block-comment--error (errMsg &optional errEcho)
+  (when (not (block-comment--unit-tests-running))
+
+    (unless errEcho (setq errEcho errMsg))
+
+    ;; Format strings
+    (setq errMsg (concat "Error: " errMsg))
+    (setq errMsg (propertize errMsg 'face 'error))
+    (setq errEcho (propertize errEcho 'face 'error))
+
+    ;; Print echo message to Echo area in red
+    (let ((message-log-max nil))
+      (message errEcho)
+      )
+
+    ;; Print message to Messages buffer in red
+    (with-current-buffer (messages-buffer)
+      (goto-char (point-max))
+      (let ((inhibit-read-only t))
+        (insert errMsg)
+        )
+      )
+    )
   )
 
 (provide 'block-comment-mode)

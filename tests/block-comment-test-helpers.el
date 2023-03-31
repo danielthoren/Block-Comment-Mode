@@ -1,3 +1,7 @@
+;; Used to disable normal messages when unit tests run
+(defvar block-comment--unit-tests t)
+(setq block-comment--unit-tests t)
+
 (defun jump-to-p (&optional replace-p-with delete-p)
   """  Jump to the first occurance of the character 'p'                       """
   """  Param 'replace-p-with': If given, replace the 'p' character with this  """
