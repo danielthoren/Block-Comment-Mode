@@ -258,9 +258,9 @@ p/*                                                                             
 """  Resume pre/post amble                                                    """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(it "Test resume on preamble row"
+(it "Test resume on preamble row no space"
     (let(
-         (expected-string "
+         (expected-string "\
 /*******************************************************************************/p
 /*                                                                             */
 /*******************************************************************************/
@@ -278,25 +278,24 @@ p/*                                                                             
       )
     )
 
-;; (it "Test resume on postamble row"
-;;     (let(
-;;          (expected-string "
-;; /*******************************************************************************/
-;; /*                                                                             */
-;; /*******************************************************************************/p
-;; ")
-;;          )
+(it "Test resume on postamble row no space"
+    (let(
+         (expected-string "
+/*******************************************************************************/
+/*                                                                             */
+/*******************************************************************************/p")
+         )
 
-;;       ;; Insert block comment and put point at correct position
-;;       (insert expected-string)
-;;       (jump-to-p nil t)
-;;       (setq expected-string (remove-p expected-string))
+      ;; Insert block comment and put point at correct position
+      (insert expected-string)
+      (jump-to-p nil t)
+      (setq expected-string (remove-p expected-string))
 
-;;       ;; Insert block comment
-;;       (block-comment-start)
-;;       (expect block-comment-mode :to-be nil)
-;;       )
-;;     )
+      ;; Insert block comment
+      (block-comment-start)
+      (expect block-comment-mode :to-be nil)
+      )
+    )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 """  Test space constrained comments                                          """

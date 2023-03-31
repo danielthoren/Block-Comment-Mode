@@ -723,12 +723,9 @@
           (skip-syntax-backward "^ " (line-beginning-position))
           (setq start-pos (point-marker))
 
-          ;; TODO: Finish this bugfix
-          (message "%s" (- (marker-position (beginning-of-buffer))
-                           (marker-position (point))))
-
-          (if (> block-comment-edge-offset (- (marker-position (beginning-of-buffer))
-                                              (marker-position (point-marker))))
+          ;; If there is enough space remaining
+          (if (< block-comment-edge-offset (- (marker-position (point-marker))
+                                              (point-min)))
               (progn
                 (backward-char block-comment-edge-offset)
                 (setq fill-margin-pos (point-marker))
@@ -758,11 +755,22 @@
           (setq start-pos (point-marker))
           (skip-syntax-forward "^ " (line-end-position))
           (setq end-pos (point-marker))
-          (forward-char block-comment-edge-offset)
-          (setq fill-margin-pos (point-marker))
 
-          (setq prefix (buffer-substring start-pos end-pos))
-          (setq prefix-fill (buffer-substring end-pos fill-margin-pos))
+          ;; If there is enough space remaining
+          (if (< block-comment-edge-offset (- (point-max)
+                                              (marker-position (point-marker))))
+              (progn
+                (forward-char block-comment-edge-offset)
+                (setq fill-margin-pos (point-marker))
+
+                (setq prefix (buffer-substring start-pos end-pos))
+                (setq prefix-fill (buffer-substring end-pos fill-margin-pos))
+                )
+            (progn
+              (setq encountered-error t)
+              )
+            )
+
           )
         )
       )
