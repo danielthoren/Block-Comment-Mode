@@ -258,25 +258,25 @@ p/*                                                                             
 """  Resume pre/post amble                                                    """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (it "Test resume on preamble row"
-;;     (let(
-;;          (expected-string "
-;; /*******************************************************************************/p
-;; /*                                                                             */
-;; /*******************************************************************************/
-;; ")
-;;          )
+(it "Test resume on preamble row"
+    (let(
+         (expected-string "
+/*******************************************************************************/p
+/*                                                                             */
+/*******************************************************************************/
+")
+         )
 
-;;       ;; Insert block comment and put point at correct position
-;;       (insert expected-string)
-;;       (jump-to-p nil t)
-;;       (setq expected-string (remove-p expected-string))
+      ;; Insert block comment and put point at correct position
+      (insert expected-string)
+      (jump-to-p nil t)
+      (setq expected-string (remove-p expected-string))
 
-;;       ;; Insert block comment
-;;       (block-comment-start)
-;;       (expect block-comment-mode :to-be nil)
-;;       )
-;;     )
+      ;; Insert block comment
+      (block-comment-start)
+      (expect block-comment-mode :to-be nil)
+      )
+    )
 
 ;; (it "Test resume on postamble row"
 ;;     (let(

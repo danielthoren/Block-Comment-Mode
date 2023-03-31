@@ -713,6 +713,7 @@
     ;; Only try to detect if the line is not blank
     (unless (block-comment--is-blank-line)
 
+      ;; (condition-case nil
       (save-excursion
         (end-of-line)
         (skip-syntax-backward " " (line-beginning-position))
@@ -721,13 +722,32 @@
           (setq end-pos (point-marker))
           (skip-syntax-backward "^ " (line-beginning-position))
           (setq start-pos (point-marker))
-          (backward-char block-comment-edge-offset)
-          (setq fill-margin-pos (point-marker))
 
-          (setq postfix (buffer-substring start-pos end-pos))
-          (setq postfix-fill (buffer-substring start-pos fill-margin-pos))
+          ;; TODO: Finish this bugfix
+          (message "%s" (- (marker-position (beginning-of-buffer))
+                           (marker-position (point))))
+
+          (if (> block-comment-edge-offset (- (marker-position (beginning-of-buffer))
+                                              (marker-position (point-marker))))
+              (progn
+                (backward-char block-comment-edge-offset)
+                (setq fill-margin-pos (point-marker))
+
+                (setq postfix (buffer-substring start-pos end-pos))
+                (setq postfix-fill (buffer-substring start-pos fill-margin-pos))
+                )
+            (progn
+              (setq encountered-error t)
+              )
+            )
           )
         )
+
+        ;; (error
+        ;;  (setq encountered-error t)
+        ;;  (block-comment--error "block-comment--is-enclose: Encountered end-of-buffer" "BC: end-of-buffer")
+        ;;  )
+        ;; )
 
       ;; Find prefix
       (save-excursion
