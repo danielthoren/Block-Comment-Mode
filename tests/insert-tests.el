@@ -237,7 +237,7 @@
 """                 Test normal inserts for common languages                  """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  (it "Test c++ insert (symetrical)"
+  (it "Test insert c++ (symetrical)"
     (let(
          (expected-string "
 /*******************************************************************************/
@@ -278,7 +278,7 @@
       )
     )
 
-  (it "Test c++ insert (non-symetrical)"
+  (it "Test insert c++ (non-symetrical)"
     (let(
          (expected-string "
 /********************************************************************************
@@ -321,7 +321,7 @@
       )
     )
 
-  (it "Test python insert"
+  (it "Test insert python"
     (let(
          (expected-string "
 #################################################################################
@@ -362,7 +362,7 @@
       )
     )
 
-  (it "Test elisp insert"
+  (it "Test insert elisp"
     (let(
          (expected-string "
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -403,7 +403,7 @@
       )
     )
 
-  (it "Test bash insert"
+  (it "Test insert bash"
     (let(
          (expected-string "
 #################################################################################
