@@ -655,7 +655,7 @@
                  (setq at-bottom (block-comment--is-at-buffer-bottom lines-in-buffer))
 
                  ;; Continue if still in block comment body and not at bottom of buffer
-                 (and at-bottom
+                 (and (not at-bottom)
                       (block-comment--is-body nil))
                  )
           )
@@ -862,16 +862,12 @@
     ;; Find block end
     (end-of-line)
     (skip-syntax-backward " " (line-beginning-position))
-    ;; (when (equal (point-marker) (line-beginning-position))
       (setq block-end (current-column))
-      ;; )
 
     ;; Find block start
     (beginning-of-line)
     (skip-syntax-forward " " (line-end-position))
-    ;; (when (equal (point-marker) (line-end-position))
       (setq block-start (current-column))
-      ;; )
 
     ;; If block end is less than block start, then the row is empty
     (when (and block-end block-start (> block-end block-start))
@@ -923,6 +919,7 @@
           )
         )
       )
+
     ;; Return the prefix
     enclose-prefix
     )
@@ -1359,8 +1356,10 @@
     ;; Disable hooks to disable centering when adjusting width
     (block-comment--remove-hooks)
 
+    ;; FIXME: Dont start from row beneath comment, this failes when there are no
+    ;; rows beneath. Start on last row instead
     (save-excursion
-      (block-comment--jump-to-last-comment-row 1)
+      (block-comment--jump-to-last-comment-row)
       (block-comment--adjust-rows-above-to-target-width target-width)
       )
 
@@ -1369,11 +1368,11 @@
     )
   )
 
-;; TODO: Make this function start at the current row. Otherwise it will not support
-;; when the block comment is at the bottom of the buffer
 (defun block-comment--adjust-rows-above-to-target-width (target-width)
-  """  Aligns all block comment rows above to the given target width           """
-  """  Param 'target-width': The width to align to                             """
+  """  Aligns all block comment rows, starting from the current line and      """
+  """  upward to the given target width                                       """
+
+  """  Param 'target-width': The width to align to                            """
   (let (
         (curr-width 0)
         (width-diff 0)
@@ -1385,9 +1384,6 @@
 
     ;; Align all block comment rows above
     (while (progn
-
-             ;; Move up one line
-             (block-comment--move-line -1)
 
              ;; Check if this is body or enclose
              (setq is-body (block-comment--is-body nil))
@@ -1422,6 +1418,9 @@
       ;; Check if at top after performing logic in order to process the top
       ;; line before breaking the while loop
       (setq at-top (block-comment--is-at-buffer-top))
+
+      ;; Move up one line
+      (block-comment--move-line -1)
 
       ) ;; end while
     )
@@ -1938,7 +1937,7 @@
   """                            calculated.                                 """
   """  -> Return: t if current pos is at the last line, else nil             """
   (unless lines-in-buffer (setq lines-in-buffer (block-comment--get-line-count-in-buffer)))
-  (< (line-number-at-pos) lines-in-buffer)
+  (equal (line-number-at-pos) lines-in-buffer)
   )
 
 (defun block-comment--is-current-line-empty ()
@@ -1973,7 +1972,7 @@
         (has-body-beneath nil)
         (start-column (current-column))
         )
-
+    ;; TODO needed?
     ;; Insert new line if at top of buffer
     ;; (when (equal (line-number-at-pos) 1)
     ;;   (beginning-of-line)
@@ -1995,7 +1994,7 @@
   )
 
 (defun block-comment--is-enclose-bot (&optional inside-body)
-  """ Checks if the current row follows the format of a block comment         """
+  """  Checks if the current row follows the format of a block comment        """
   """  bottom enclose                                                         """
   """  Param 'inside': specifies if point is required to be inside of the     """
   """                body or not:                                             """
@@ -2263,8 +2262,11 @@
         (line-end (line-end-position))
         )
     (beginning-of-line)
+
+    ;; TODO: Do we need this?
     ;; Jump back one since search forward starts searching on point + 1
     ;; (backward-char 1) ;; NOTE: should work without this
+
     ;; Place point at end of prefix if a prefix is found
     (if (search-forward prefix
                         line-end
@@ -2294,7 +2296,9 @@
         )
     (end-of-line)
     ;; Jump forward one since search backward starts searching on point + 1
-    (forward-char 1)
+
+    ;; TODO: Do we need this?
+    ;; (forward-char 1)
     ;; Place point at start of postfix if a postfix is found
     (if (search-backward postfix
                          line-start
@@ -2382,8 +2386,7 @@
   )
 
 (defun block-comment--jump-to-last-comment-row (&optional offset stop-before-postfix)
-  (interactive)
-  """ Moves point down to last block comment row.                            """
+  """  Moves point down to last block comment row.                           """
   """  Param 'offset': The offset can be used to tweak the relative          """
   """                  position that point ends on:                          """
   """                      +x -> Move point x lines further down             """
@@ -2413,6 +2416,7 @@
                (setq is-enclose-bot (block-comment--is-enclose-bot nil)))
 
              (setq at-bottom (block-comment--is-at-buffer-bottom lines-in-buffer))
+
              ;; Exit if not in comment or if at bottom of buffer
              (and (not at-bottom)
                   (or is-body is-enclose-top is-enclose-bot))
