@@ -2,6 +2,8 @@
 (defvar block-comment--unit-tests t)
 (setq block-comment--unit-tests t)
 
+(defvar p-string "<p>")
+
 (defun jump-to-p (&optional replace-p-with delete-p)
   """  Jump to the first occurance of the character '<p>'                       """
   """  Param 'replace-p-with': If given, replace the '<p>' character with this  """
@@ -9,15 +11,34 @@
   (when replace-p-with (setq delete-p t))
 
   (beginning-of-buffer)
-  (search-forward "<p>")
-  (backward-char 3)
+  (search-forward p-string)
 
-  (when delete-p
-    (delete-char 3)
+  (if delete-p
+      (delete-char -3)
+    (backward-char 3)
     )
 
   (when replace-p-with
     (insert replace-p-with)
+    (backward-char 3);;(string-width replace-p-with))
+    )
+  )
+
+(defun expect-point-at-p (string-with-p &optional replace-p-with)
+  """  Function checks that the actual pointer is at the position marked by <p> """
+  (unless replace-p-with (setq replace-p-with "   "))
+  (let (
+        (expected-pointer-position nil)
+        (pointer-position (marker-position (point-marker)))
+        )
+    (with-temp-buffer
+      (insert string-with-p)
+      (whitespace-cleanup)
+      (jump-to-p replace-p-with)
+      (setq expected-pointer-position (marker-position (point-marker)))
+      )
+
+    (expect pointer-position :to-equal expected-pointer-position)
     )
   )
 
@@ -33,7 +54,7 @@
   """  Param 'replacement': If given, '<p>' is replaced by this character,   """
   """                       else <p> is removed                                """
   (unless replacement (setq replacement ""))
-  (replace-regexp-in-string "<p>" replacement string-with-p)
+  (replace-regexp-in-string p-string replacement string-with-p)
   )
 
 (defun file-to-string (file)

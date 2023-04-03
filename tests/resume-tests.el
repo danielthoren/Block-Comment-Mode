@@ -70,12 +70,12 @@
       (jump-to-p nil t)
       (setq expected-string (remove-p expected-string))
 
-      ;; Set centering to t
-      (block-comment-toggle-centering)
-      (expect block-comment-centering-enabled :to-be t)
-
       ;; Insert block comment
       (block-comment-start)
+
+      ;; Set centering to t
+      (block-comment-toggle-centering)
+
       (block-comment-abort)
 
       ;; Clean buffer and add newline at top for better error message
@@ -93,8 +93,6 @@
       (expect result-string :to-equal expected-string)
       (expect (line-number-at-pos) :to-equal 2)
       (expect (current-column) :to-equal 40)
-
-      (block-comment-toggle-centering)
       )
     )
 

@@ -18,7 +18,7 @@
   """                            Test normal insert                             """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  (it "Test insert non-centering"
+  (it "Insert non-centering"
     (let(
          (expected-string "
 /*******************************************************************************/
@@ -32,9 +32,6 @@
       (block-comment--init-comment-style 80
                                          "/*"   " "   "*/"
                                          "/*"   "*"   "*/" )
-
-      ;; Centering should default to nil
-      (expect block-comment-centering-enabled :to-be nil)
 
       ;; Insert block comment
       (block-comment-start)
@@ -62,7 +59,7 @@
       )
     )
 
-  (it "Test insert centering"
+  (it "Insert centering"
     (let(
          (expected-string "
 /*******************************************************************************/
@@ -75,14 +72,12 @@
       ;; Init c++ block comment style
       (block-comment--init-comment-style 80
                                          "/*"   " "   "*/"
-                                         "/*"   "*"   "*/"
-                                         t)
+                                         "/*"   "*"   "*/")
 
-      ;; Centering should be t
-      (expect block-comment-centering-enabled :to-be t)
 
       ;; Insert block comment
       (block-comment-start)
+      (block-comment-toggle-centering)
       (block-comment-abort)
 
       ;; Clean buffer and add newline at top for better error message
@@ -107,7 +102,7 @@
       )
     )
 
-  (it "Test insert indented"
+  (it "Insert indented"
     (let(
          (indent 2)
          (expected-string "
@@ -151,7 +146,7 @@
       )
     )
 
-(it "Test insert when just enough room"
+(it "Insert when just enough horizontal room"
     (let(
          (indent 61)
          (expected-string "
@@ -197,7 +192,7 @@
       )
     )
 
-(it "Test insert when not enough room"
+(it "Insert when not enough horizontal room"
     (let(
          (indent 62)
          (expected-string "")
@@ -237,7 +232,7 @@
 """                 Test normal inserts for common languages                  """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  (it "Test insert c++ (symetrical)"
+  (it "Insert c++ (symetrical)"
     (let(
          (expected-string "
 /*******************************************************************************/
@@ -278,7 +273,7 @@
       )
     )
 
-  (it "Test insert c++ (non-symetrical)"
+  (it "Insert c++ (non-symetrical)"
     (let(
          (expected-string "
 /********************************************************************************
@@ -292,7 +287,6 @@
       (block-comment--init-comment-style 80
                                          "***"   " "   "***"
                                          "/*"    "*"   "*"
-                                         nil
                                          "*"     "*"   "*/")
 
       ;; Insert block comment
@@ -321,7 +315,7 @@
       )
     )
 
-  (it "Test insert python"
+  (it "Insert python"
     (let(
          (expected-string "
 #################################################################################
@@ -362,7 +356,7 @@
       )
     )
 
-  (it "Test insert elisp"
+  (it "Insert elisp"
     (let(
          (expected-string "
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -403,7 +397,7 @@
       )
     )
 
-  (it "Test insert bash"
+  (it "Insert bash"
     (let(
          (expected-string "
 #################################################################################
@@ -448,7 +442,7 @@
   """                              Test edge cases                              """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  (it "Test insert on non-empty line"
+  (it "Insert on non-empty line"
     (let(
          (expected-string "")
          (result-string "")

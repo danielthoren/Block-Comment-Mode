@@ -93,8 +93,6 @@
 (defvar block-comment-enclose-fill-bot-default nil)
 (defvar block-comment-enclose-postfix-bot-default nil)
 
-;; Used to remember if is centering or not
-(defvar block-comment-centering-enabled nil)
 ;; Sets the target spacing between pre/postfix and user comment
 (defvar block-comment-edge-offset 2)
 
@@ -104,6 +102,7 @@
 (defvar-local block-comment-centering--order 1)
 (defvar-local block-comment-centering--left-offset 0)
 (defvar-local block-comment-centering--right-offset 0)
+(defvar-local block-comment-centering--enabled nil)
 (defvar-local block-comment-has-hooks nil)
 (defvar-local block-comment--force-no-hooks nil)
 
@@ -180,13 +179,19 @@
 (defun block-comment-toggle-centering ()
   (interactive)
   """ Toggles centering mode """
-  (if block-comment-centering-enabled
+  (if block-comment-centering--enabled
       (progn
-        (setq block-comment-centering-enabled nil) ;; If enabled , disable
-        (setq block-comment-centering--order 1) ;; Set order to right side (end of comment)
+        (setq-local block-comment-centering--enabled nil) ;; If enabled , disable
+        (setq-local block-comment-centering--order 1) ;; Set order to right side (end of comment)
+        (block-comment--message "BC: Centering disabled")
         )
     (progn
-      (setq block-comment-centering-enabled t)     ;; If disabled, enabled
+      (setq-local block-comment-centering--enabled t)     ;; If disabled, enabled
+      (block-comment--align :center)
+      (when (block-comment--has-comment)
+        (block-comment--jump-to-last-char-in-body)
+        )
+      (block-comment--message "BC: Centering enabled")
       )
     )
   )
@@ -265,6 +270,7 @@
   (setq-local block-comment-centering--order 1)
   (setq-local block-comment-centering--left-offset 0)
   (setq-local block-comment-centering--right-offset 0)
+  (setq-local block-comment-centering--enabled nil)
   (setq-local block-comment-has-hooks nil)
   (setq-local block-comment--force-no-hooks nil)
   )
@@ -293,24 +299,18 @@
                                           enclose-prefix
                                           enclose-fill
                                           enclose-postfix
-                                          &optional centering-default
-                                                    enclose-prefix-bot
+                                          &optional enclose-prefix-bot
                                                     enclose-fill-bot
                                                     enclose-postfix-bot)
   """ Initializes variables of block-comment-mode                             """
   """ This should be called during initialization of each mode where block-   """
   """ comment-mode shall be used. Default behaviour is c/c++ comment style    """
-  """    -> centering-default : If t, then centers by default                 """
   """    -> enclose-prefix-bot :                                              """
   """    -> enclose-fill-bot :                                                """
   """    -> enclose-postfix-bot : If present, then a different set of         """
   """                             variables are used for the bottom enclose   """
   """                             than the top. If not, then the same         """
   """                             settings are used for both top and bottom   """
-
-  (unless centering-default
-    (setq centering-default nil)
-    )
 
   (unless enclose-prefix-bot
     (setq enclose-prefix-bot enclose-prefix)
@@ -345,8 +345,6 @@
   (setq block-comment-enclose-fill-bot-default enclose-fill-bot)
   (setq block-comment-enclose-postfix-bot-default enclose-postfix-bot)
 
-  ;; Used to remember if is centering or not
-  (setq block-comment-centering-enabled centering-default)
   ;; Sets the target spacing between pre/postfix and user comment
   (setq block-comment-edge-offset 2)
   )
@@ -408,7 +406,7 @@
   """  else centering is enabled:               Jump to start                 """
   (if (block-comment--has-comment)
       (block-comment--jump-to-last-char-in-body)
-    (if block-comment-centering-enabled
+    (if block-comment-centering--enabled
         (block-comment--jump-to-body-center)
       (block-comment--jump-to-body-start)
       )
@@ -987,11 +985,11 @@
 
       (if (< step 0)
           (block-comment-centering--removed-chars block-comment-centering--order
-                                                  block-comment-centering-enabled)
+                                                  block-comment-centering--enabled)
         (progn
           ;; If centering is not enabled, only remove from right side
           ;; of user comment
-          (unless block-comment-centering-enabled
+          (unless block-comment-centering--enabled
             (setq left 0)
             (setq right step)
             )
@@ -1000,7 +998,7 @@
 
       ;; Alternate between putting larger step on left/right side
       ;; if centering is enabled
-      (when block-comment-centering-enabled
+      (when block-comment-centering--enabled
         (setq block-comment-centering--order
               (- 1 block-comment-centering--order))
         )
@@ -1064,7 +1062,7 @@
 
     ;; Make edge offset 1 char larger when centering to make it easier to
     ;; differentiate between the modes
-    (when block-comment-centering-enabled
+    (when block-comment-centering--enabled
       (setq edge-offset (+ edge-offset 1))
       )
 
@@ -1463,7 +1461,7 @@
           ;; Alternate between putting larger step on left/right side
           ;; if centering is enabled
           (progn
-            (when block-comment-centering-enabled
+            (when block-comment-centering--enabled
               (setq block-comment-centering--order
                     (- 1 block-comment-centering--order))
               )
@@ -2216,6 +2214,7 @@
   )
 
 (defun block-comment--jump-to-body-center ()
+  (interactive)
   """  Jumps to the center of the block comment body and returns the end      """
   """  final column position                                                  """
   (let (
@@ -2431,7 +2430,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--unit-tests-running ()
-  (and (boundp block-comment--unit-tests)
+  (and (boundp 'block-comment--unit-tests)
        block-comment--unit-tests)
   )
 
