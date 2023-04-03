@@ -17,11 +17,13 @@
   (it "Line is empty"
     (expect (block-comment--is-current-line-empty)
             :to-be
-            t))
+            t)
+    )
 
   (it "Line is not empty"
     (insert "random string")
     (expect (block-comment--is-current-line-empty)
             :to-be
-            nil))
+            nil)
+    )
 )

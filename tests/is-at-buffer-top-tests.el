@@ -17,7 +17,7 @@
   (it "At top"
     (let (
           (text "\
-Random p
+Random <p>
 test
 text
 ")
@@ -40,7 +40,7 @@ text
           (text "\
 Random
 test
-text p
+text <p>
 ")
           )
       (insert text)
@@ -60,7 +60,7 @@ text p
     (let (
           (text "\
 Random
-test p
+test <p>
 text
 ")
           )

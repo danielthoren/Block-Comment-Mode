@@ -1956,7 +1956,13 @@
     (goto-char (or pos (point)))
     (beginning-of-line)
     (= (point-at-eol)
-       (progn (skip-syntax-forward " ") (point)))))
+       (progn
+         (skip-syntax-forward " ")
+         (point)
+         )
+       )
+    )
+  )
 
 (defun block-comment--is-enclose-top (&optional inside-body)
   """  Checks if the current row follows the format of a block comment        """

@@ -3,17 +3,17 @@
 (setq block-comment--unit-tests t)
 
 (defun jump-to-p (&optional replace-p-with delete-p)
-  """  Jump to the first occurance of the character 'p'                       """
-  """  Param 'replace-p-with': If given, replace the 'p' character with this  """
-  """  Param 'replace-p-with': If t, delete p                                 """
+  """  Jump to the first occurance of the character '<p>'                       """
+  """  Param 'replace-p-with': If given, replace the '<p>' character with this  """
+  """  Param 'delete-p': If t, delete <p>                                       """
   (when replace-p-with (setq delete-p t))
 
   (beginning-of-buffer)
-  (search-forward "p")
-  (backward-char 1)
+  (search-forward "<p>")
+  (backward-char 3)
 
   (when delete-p
-    (delete-char 1)
+    (delete-char 3)
     )
 
   (when replace-p-with
@@ -22,18 +22,18 @@
   )
 
 (defun remove-p (string-with-p)
-  """  Remove the first occurance of the character 'p'                       """
+  """  Remove the first occurance of the character '<p>'                     """
   """  Param 'string-with-p': The string to operate on                       """
   (replace-p string-with-p nil)
   )
 
 (defun replace-p (string-with-p &optional replacement)
-  """  Remove the first occurance of the character 'p'                       """
+  """  Remove the first occurance of the character '<p>'                     """
   """  Param 'string-with-p': The string to operate on                       """
-  """  Param 'replacement': If given, 'p' is replaced by this character,     """
-  """                       else p is removed                                """
+  """  Param 'replacement': If given, '<p>' is replaced by this character,   """
+  """                       else <p> is removed                                """
   (unless replacement (setq replacement ""))
-  (replace-regexp-in-string "p" replacement string-with-p)
+  (replace-regexp-in-string "<p>" replacement string-with-p)
   )
 
 (defun file-to-string (file)

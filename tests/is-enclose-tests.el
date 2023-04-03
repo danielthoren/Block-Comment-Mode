@@ -21,7 +21,7 @@
   (it "Test is-enclose: Has enclose"
     (let(
          (start-string "
-/*******************************************************************************/p
+/*******************************************************************************/<p>
 ")
          (prefix "/*")
          (postfix "*/")
@@ -30,7 +30,7 @@
 
       ;; Insert block comment and put point at correct position
       (insert start-string)
-      (jump-to-p " " t)
+      (jump-to-p nil t)
 
       (expect (block-comment--is-enclose prefix fill postfix) :to-be t)
       )
@@ -39,7 +39,7 @@
   (it "Test is-enclose: Has indented enclose"
     (let(
          (start-string "
-              /*****************************************/  p
+              /*****************************************/  <p>
 ")
          (prefix "/*")
          (postfix "*/")
@@ -48,7 +48,7 @@
 
       ;; Insert block comment and put point at correct position
       (insert start-string)
-      (jump-to-p " " t)
+      (jump-to-p nil t)
 
       (expect (block-comment--is-enclose prefix fill postfix) :to-be t)
       )
@@ -57,7 +57,7 @@
   (it "Test is-enclose: Small enclose"
     (let(
          (start-string "
-/*******/p
+/*******/<p>
 ")
          (prefix "/*")
          (postfix "*/")
@@ -66,7 +66,7 @@
 
       ;; Insert block comment and put point at correct position
       (insert start-string)
-      (jump-to-p " " t)
+      (jump-to-p nil t)
 
       (expect (block-comment--is-enclose prefix fill postfix) :to-be t)
       )
@@ -75,7 +75,7 @@
   (it "Test is-enclose: No enclose"
     (let(
          (start-string "
-if (i < 10)p
+if (i < 10)<p>
 ")
          (prefix "/*")
          (postfix "*/")
@@ -84,7 +84,7 @@ if (i < 10)p
 
       ;; Insert block comment and put point at correct position
       (insert start-string)
-      (jump-to-p " " t)
+      (jump-to-p nil t)
 
       (expect (block-comment--is-enclose prefix fill postfix) :to-be nil)
       )
@@ -93,7 +93,7 @@ if (i < 10)p
   (it "Test is-enclose: Enclose with gap in fill"
     (let(
          (start-string "
-/************************************************** *****************************/p
+/************************************************** *****************************/<p>
 ")
          (prefix "/*")
          (postfix "*/")
@@ -111,7 +111,7 @@ if (i < 10)p
   (it "Test is-enclose: Enclose with deformed prefix"
     (let(
          (start-string "
-*******************************************************************************/p
+*******************************************************************************/<p>
 ")
          (prefix "/*")
          (postfix "*/")
@@ -120,7 +120,7 @@ if (i < 10)p
 
       ;; Insert block comment and put point at correct position
       (insert start-string)
-      (jump-to-p " " t)
+      (jump-to-p nil t)
 
       (expect (block-comment--is-enclose prefix fill postfix) :to-be nil)
       )
@@ -129,7 +129,7 @@ if (i < 10)p
   (it "Test is-enclose: Enclose with deformed postfix"
     (let(
          (start-string "
-/******************************************************************************* /p
+/******************************************************************************* /<p>
 ")
          (prefix "/*")
          (postfix "*/")
@@ -138,7 +138,7 @@ if (i < 10)p
 
       ;; Insert block comment and put point at correct position
       (insert start-string)
-      (jump-to-p " " t)
+      (jump-to-p nil t)
 
       (expect (block-comment--is-enclose prefix fill postfix) :to-be nil)
       )
@@ -147,7 +147,7 @@ if (i < 10)p
   (it "Test is-enclose: Comment body"
     (let(
          (start-string "
-/*                                                                             */p
+/*                                                                             */<p>
 ")
          (prefix "/*")
          (postfix "*/")
@@ -156,7 +156,7 @@ if (i < 10)p
 
       ;; Insert block comment and put point at correct position
       (insert start-string)
-      (jump-to-p " " t)
+      (jump-to-p nil t)
 
       (expect (block-comment--is-enclose prefix fill postfix) :to-be nil)
       )
