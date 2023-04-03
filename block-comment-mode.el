@@ -652,7 +652,7 @@
                  (forward-line 1)
 
                  ;; Check if at bottom of buffer
-                 (setq at-bottom (block-comment--is-at-buffer-bottom lines-in-buffer))
+                 (setq at-bottom (block-comment--is-at-buffer-bot lines-in-buffer))
 
                  ;; Continue if still in block comment body and not at bottom of buffer
                  (and (not at-bottom)
@@ -1929,7 +1929,7 @@
   (equal (line-number-at-pos) 1)
   )
 
-(defun block-comment--is-at-buffer-bottom (&optional lines-in-buffer)
+(defun block-comment--is-at-buffer-bot (&optional lines-in-buffer)
   """  Checks if point is at the last line in the current buffer             """
   """  Param 'lines-in-buffer' : The number of lines in the current buffer.  """
   """                            Can be sent as a parameter to minimize the  """
@@ -1972,13 +1972,6 @@
         (has-body-beneath nil)
         (start-column (current-column))
         )
-    ;; TODO needed?
-    ;; Insert new line if at top of buffer
-    ;; (when (equal (line-number-at-pos) 1)
-    ;;   (beginning-of-line)
-    ;;   (newline)
-    ;;   (forward-char start-column)
-    ;;   )
 
     (setq match-signature (block-comment--is-enclose block-comment-enclose-prefix-top
                                                      block-comment-enclose-fill-top
@@ -2069,8 +2062,8 @@
             (backward-char (+ 2 (string-width postfix)))
             (setq block-end (point-marker))
             )
-        ;; ((end-of-buffer beginning-of-buffer) ;; TODO: Add specific handling
-        (error
+        ((end-of-buffer beginning-of-buffer) ;; TODO: Add specific handling
+        ;; (error
          (setq encountered-error t)
          (block-comment--error "block-comment--is-enclose: Encountered end-of-buffer" "BC: end-of-buffer")
          )
@@ -2192,10 +2185,10 @@
 
   (unless prefix (setq prefix (block-comment--get-row-prefix)))
 
-  ;; TODO: Why this check?
-  (when (> (line-number-at-pos) 0)
+  ;; TODO: Do we need this?
+  ;; (when (> (line-number-at-pos) 0)
     (block-comment--jump-to-body-start (- 0 (string-width prefix)) prefix)
-    )
+    ;; )
   (point-marker)
   )
 
@@ -2263,10 +2256,6 @@
         )
     (beginning-of-line)
 
-    ;; TODO: Do we need this?
-    ;; Jump back one since search forward starts searching on point + 1
-    ;; (backward-char 1) ;; NOTE: should work without this
-
     ;; Place point at end of prefix if a prefix is found
     (if (search-forward prefix
                         line-end
@@ -2295,10 +2284,7 @@
         (line-start (line-beginning-position))
         )
     (end-of-line)
-    ;; Jump forward one since search backward starts searching on point + 1
 
-    ;; TODO: Do we need this?
-    ;; (forward-char 1)
     ;; Place point at start of postfix if a postfix is found
     (if (search-backward postfix
                          line-start
@@ -2415,7 +2401,7 @@
              (unless stop-before-postfix
                (setq is-enclose-bot (block-comment--is-enclose-bot nil)))
 
-             (setq at-bottom (block-comment--is-at-buffer-bottom lines-in-buffer))
+             (setq at-bottom (block-comment--is-at-buffer-bot lines-in-buffer))
 
              ;; Exit if not in comment or if at bottom of buffer
              (and (not at-bottom)

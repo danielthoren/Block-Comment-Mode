@@ -8,7 +8,7 @@
 (add-to-list 'load-path "tests")
 (require 'block-comment-test-helpers)
 
-(describe "Test is-enclose"
+(describe "Test is functions"
 
   (before-each
     (erase-buffer)
@@ -18,7 +18,7 @@
 """  is-enclose                                                               """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  (it "Has enclose"
+  (it "Test is-enclose: Has enclose"
     (let(
          (start-string "
 /*******************************************************************************/p
@@ -36,7 +36,7 @@
       )
     )
 
-  (it "Has indented enclose"
+  (it "Test is-enclose: Has indented enclose"
     (let(
          (start-string "
               /*****************************************/  p
@@ -54,7 +54,7 @@
       )
     )
 
-  (it "Small enclose"
+  (it "Test is-enclose: Small enclose"
     (let(
          (start-string "
 /*******/p
@@ -72,7 +72,7 @@
       )
     )
 
-  (it "No enclose"
+  (it "Test is-enclose: No enclose"
     (let(
          (start-string "
 if (i < 10)p
@@ -90,7 +90,7 @@ if (i < 10)p
       )
     )
 
-  (it "Enclose with gap in fill"
+  (it "Test is-enclose: Enclose with gap in fill"
     (let(
          (start-string "
 /************************************************** *****************************/p
@@ -108,7 +108,7 @@ if (i < 10)p
       )
     )
 
-  (it "Enclose with deformed prefix"
+  (it "Test is-enclose: Enclose with deformed prefix"
     (let(
          (start-string "
 *******************************************************************************/p
@@ -126,7 +126,7 @@ if (i < 10)p
       )
     )
 
-  (it "Enclose with deformed postfix"
+  (it "Test is-enclose: Enclose with deformed postfix"
     (let(
          (start-string "
 /******************************************************************************* /p
@@ -144,7 +144,7 @@ if (i < 10)p
       )
     )
 
-  (it "Comment body"
+  (it "Test is-enclose: Comment body"
     (let(
          (start-string "
 /*                                                                             */p
