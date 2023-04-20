@@ -1354,8 +1354,6 @@
     ;; Disable hooks to disable centering when adjusting width
     (block-comment--remove-hooks)
 
-    ;; FIXME: Dont start from row beneath comment, this failes when there are no
-    ;; rows beneath. Start on last row instead
     (save-excursion
       (block-comment--jump-to-last-comment-row)
       (block-comment--adjust-rows-above-to-target-width target-width)
@@ -1367,9 +1365,8 @@
   )
 
 (defun block-comment--adjust-rows-above-to-target-width (target-width)
-  """  Aligns all block comment rows, starting from the current line and      """
+  """  Aligns all block comment rows, starting from the current row and       """
   """  upward to the given target width                                       """
-
   """  Param 'target-width': The width to align to                            """
   (let (
         (curr-width 0)
@@ -2037,8 +2034,8 @@
                              inside-body))
 
 (defun block-comment--is-enclose (prefix fill postfix &optional inside-body)
-  """ checks if the current row follows the format of a enclose                   """
-  """ with the given prefix, fill and postfix.                                    """
+  """  Checks if the current row follows the format of a enclose                  """
+  """  with the given prefix, fill and postfix.                                   """
   """  Param 'prefix' : The prefix to look for                                    """
   """  Param 'fill' : The fill to use                                             """
   """  Param 'postfix' : The postfix to look for                                  """
@@ -2066,8 +2063,7 @@
             (backward-char (+ 2 (string-width postfix)))
             (setq block-end (point-marker))
             )
-        ((end-of-buffer beginning-of-buffer) ;; TODO: Add specific handling
-        ;; (error
+        ((end-of-buffer beginning-of-buffer)
          (setq encountered-error t)
          (block-comment--error "block-comment--is-enclose: Encountered end-of-buffer" "BC: end-of-buffer")
          )
