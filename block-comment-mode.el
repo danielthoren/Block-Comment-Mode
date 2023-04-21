@@ -2184,11 +2184,7 @@
   """  Ret: The position of the comment start                                  """
 
   (unless prefix (setq prefix (block-comment--get-row-prefix)))
-
-  ;; TODO: Do we need this?
-  ;; (when (> (line-number-at-pos) 0)
-    (block-comment--jump-to-body-start (- 0 (string-width prefix)) prefix)
-    ;; )
+  (block-comment--jump-to-body-start (- 0 (string-width prefix)) prefix)
   (point-marker)
   )
 

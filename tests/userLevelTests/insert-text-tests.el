@@ -113,55 +113,49 @@
       )
     )
 
-;; (it "Insert text with no horizontal room"
-;;     (let(
-;;          (user-text "User inserted this text")
-;;          (start-string "
-;; /*******************************************************************************/
-;; /*                                    User text that existed before test. <p>  */
-;; /*******************************************************************************/
-;; ")
-;;          (expected-string "
-;; /****************************************************************************************************/
-;; /*                                    User text that existed before test. User inserted this text<p>*/
-;; /****************************************************************************************************/
-;; ")
-;;          (result-string "")
-;;          )
+(it "Insert text with no horizontal room"
+    (let(
+         (user-text "User inserted this text")
+         (start-string "
+/******************************************************************************/
+/*                                    User text that existed before test. <p> */
+/******************************************************************************/
+")
+         (expected-string "
+/****************************************************************************************************/
+/*                                    User text that existed before test. User inserted this text<p>*/
+/****************************************************************************************************/
+")
+         (result-string "")
+         )
 
-;;       (insert start-string)
-;;       (jump-to-p "  ")
+      (insert start-string)
+      (jump-to-p "  ")
 
-;;       ;; (message "start: \n%s" (buffer-string))
+      ;; Resume block comment
+      (insert user-text)
+      (block-comment-start)
+      (block-comment-abort)
 
-;;       ;; Resume block comment
-;;       (insert user-text)
-;;       (block-comment-start)
-;;       (block-comment-abort)
+      ;; Clean buffer and add newline at top for better error message
+      (whitespace-cleanup)
 
-;;       ;; Clean buffer and add newline at top for better error message
-;;       (whitespace-cleanup)
+      ;; Check that position of point is correct
+      (expect-point-at-p expected-string)
 
-;;       ;; Check that position of point is correct
-;;       (message "res: column: %d row: %d" (current-column) (line-number-at-pos))
-;;       (expect-point-at-p expected-string)
+      (setq result-string (buffer-string))
 
-;;       (setq result-string (buffer-string))
+      ;; Append newline at top for better error message
+      (setq result-string (concat "\n" result-string))
 
-;;       ;; Append newline at top for better error message
-;;       (setq result-string (concat "\n" result-string))
+      ;; Remove <p>
+      (setq expected-string (replace-p expected-string "   "))
 
-;;       ;; Remove <p>
-;;       (setq expected-string (replace-p expected-string "   "))
+      ;; Make strings easier to read in terminal
+      (setq expected-string (make-whitespace-readable expected-string))
+      (setq result-string (make-whitespace-readable result-string))
 
-;;       ;; (message "Expected: \n%s" expected-string)
-;;       ;; (message "Result: \n%s" result-string)
-
-;;       ;; Make strings easier to read in terminal
-;;       (setq expected-string (make-whitespace-readable expected-string))
-;;       (setq result-string (make-whitespace-readable result-string))
-
-;;       (expect result-string :to-equal expected-string)
-;;       )
-;;     )
+      (expect result-string :to-equal expected-string)
+      )
+    )
 )

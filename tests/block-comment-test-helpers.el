@@ -5,6 +5,7 @@
 (defvar p-string "<p>")
 
 (defun jump-to-p (&optional replace-p-with delete-p)
+  (interactive)
   """  Jump to the first occurance of the character '<p>'                       """
   """  Param 'replace-p-with': If given, replace the '<p>' character with this  """
   """  Param 'delete-p': If t, delete <p>                                       """
@@ -14,13 +15,14 @@
   (search-forward p-string)
 
   (if delete-p
-      (delete-char -3)
-    (backward-char 3)
+      (delete-char (- (string-width p-string)))
+    (insert (make-string (string-width p-string) " "))
+    (backward-char (string-width p-string))
     )
 
   (when replace-p-with
     (insert replace-p-with)
-    (backward-char 3);;(string-width replace-p-with))
+    (backward-char (string-width replace-p-with))
     )
   )
 
