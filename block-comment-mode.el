@@ -17,18 +17,10 @@
 ;; elements. After this point, the new size of 3 is persistent, even
 ;; if point moves to a new row with a non-empty comment row above.
 
-;; FIXME: Bug when using centering mode. Does not swap every other letter,
-;;        instead swapping every few letters
-
 ;; TODO: Detect style assumes that current row is of body type.
 ;;       Should detect if it is body or pre/postfix line
 
-;; TODO: Many functions assume that we have space above/beneath the comment.
-;;       This assumption should not be made
-
 ;; TODO: Test extensively, then tag for release 1 (write unit tests)
-
-
 
 ;; TODO: Fix all warning when building with cask
 
@@ -41,16 +33,21 @@
 
 ;; TODO: Swap argument order for init-comment-style to take preamble row first, then body
 
+
 ;;;;;;;;;;;;;;;;;;;;;;;; Release 2 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO: Adhere to GNU coding convention:
+;;       https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
+
+;; TODO: Use chatgtp to improve functions/comments and fix doc style
+
+;; TODO: Add docstring to all variables
 
 ;; TODO: Fix default style based on prog mode
 
 ;; TODO: implement offset between top enclose body and bottom enclose
 
 ;; TODO: Split mode into multiple files
-
-;; TODO: Adhere to GNU coding convention:
-;;       https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
 
 ;; TODO: Add Toggling Between Different Lengths of block comments
 
@@ -63,8 +60,6 @@
 ;;       not exceed a strict width limit (80 characters)
 
 ;;; Code:
-
-;; TODO: Add docstring to all variables
 
 ;; Global variables shared between buffers
 (defvar block-comment-width 80)
@@ -187,6 +182,7 @@
         )
     (progn
       (setq-local block-comment-centering--enabled t)     ;; If disabled, enabled
+      (setq-local block-comment-centering--order 1) ;; Set order to right side (end of comment)
       (block-comment--align :center)
       (when (block-comment--has-comment)
         (block-comment--jump-to-last-char-in-body)
@@ -444,11 +440,6 @@
 
   ;; Reset style parameters if they are incomplete
   (block-comment--reset-style-if-incomplete)
-
-  ;; If at the top of the buffer, insert new line before inserting
-  ;; block comment to avoid truncating the comment
-  ;; (if (= (line-number-at-pos) 1)
-  ;;     (newline))
 
   (let (
         (max-viable-column (- block-comment-width
@@ -999,8 +990,8 @@
       ;; Alternate between putting larger step on left/right side
       ;; if centering is enabled
       (when block-comment-centering--enabled
-        (setq block-comment-centering--order
-              (- 1 block-comment-centering--order))
+        (setq-local block-comment-centering--order
+                    (- 1 block-comment-centering--order))
         )
       )
 
@@ -1455,12 +1446,14 @@
          )
 
       (if (block-comment--is-centering-row)
+
+          ;; TODO: Necessary? Causes a bug when inserting
           ;; Alternate between putting larger step on left/right side
           ;; if centering is enabled
           (progn
             (when block-comment-centering--enabled
-              (setq block-comment-centering--order
-                    (- 1 block-comment-centering--order))
+              ;; (setq-local block-comment-centering--order
+              ;;             (- 1 block-comment-centering--order))
               )
             )
         ;; When not centering, only add to the right
@@ -1505,10 +1498,11 @@
           (setq left  (if (= block-comment-centering--order 1) max-step min-step))
           (setq right (if (= block-comment-centering--order 1) min-step max-step))
 
+          ;; TODO: Necessary?
           ;; Alternate between putting larger step on left/right side
           ;; if centering is enabled
-          (setq block-comment-centering--order
-                (- 1 block-comment-centering--order))
+          ;; (setq-local block-comment-centering--order
+          ;;             (- 1 block-comment-centering--order))
           )
       ;; When not centering, only remove from the right if possible
       (let (
@@ -1936,7 +1930,6 @@
   )
 
 (defun block-comment--is-current-line-empty ()
-  (interactive)
   """ Checks if current line contains any non ' ' characters                 """
   (save-excursion
     (beginning-of-line)
@@ -1950,12 +1943,7 @@
   (save-excursion
     (goto-char (or pos (point)))
     (beginning-of-line)
-    (= (point-at-eol)
-       (progn
-         (skip-syntax-forward " ")
-         (point)
-         )
-       )
+    (looking-at-p "[[:space:]]*$")
     )
   )
 
