@@ -8,7 +8,7 @@
 (add-to-list 'load-path "tests")
 (require 'block-comment-test-helpers)
 
-(describe "Test resume block comment"
+(describe "Test user resume block comment"
 
   (before-each
     (erase-buffer)
@@ -18,7 +18,7 @@
   """                     Test normal resume functionality                      """
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(it "Test resume non-centering"
+(it "Resume non-centering"
     (let(
          (expected-string "
 /*******************************************************************************/
@@ -55,7 +55,7 @@
       )
     )
 
-(it "Test resume centering"
+(it "Resume centering"
     (let(
          (expected-string "
 /*******************************************************************************/
@@ -96,7 +96,7 @@
       )
     )
 
-(it "Test resume with comment text"
+(it "Resume with comment text"
     (let(
          (expected-string "
 /*******************************************************************************/
@@ -133,7 +133,7 @@
       )
     )
 
-(it "Test resume with width alignment"
+(it "Resume with width alignment"
     (let(
          (expected-string "
 /*******************************************************************************/
@@ -174,10 +174,10 @@
     )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-"""  Test resume positions                                                    """
+"""                           Test Resume positions                           """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(it "Test resume from inside comment"
+(it "Resume from inside comment"
     (let(
          (expected-string "
 /*******************************************************************************/
@@ -214,7 +214,7 @@
       )
     )
 
-(it "Test resume from beginning-of-line"
+(it "Resume from beginning-of-line"
     (let(
          (expected-string "
 /*******************************************************************************/
@@ -252,10 +252,10 @@
     )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-"""  Resume pre/post amble                                                    """
+"""                           Resume pre/post amble                           """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(it "Test resume on preamble row no space"
+(it "Resume on preamble row no space"
     (let(
          (expected-string "\
 /*******************************************************************************/<p>
@@ -275,7 +275,7 @@
       )
     )
 
-(it "Test resume on postamble row no space"
+(it "Resume on postamble row no space"
     (let(
          (expected-string "
 /*******************************************************************************/
@@ -295,10 +295,10 @@
     )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-"""  Test space constrained comments                                          """
+"""                      Test space constrained comments                      """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(it "Test resume no space beneath"
+(it "Resume no space beneath"
     (let(
          (expected-string "
 /*******************************************************************************/
@@ -334,7 +334,7 @@
       )
     )
 
-(it "Test resume no space above"
+(it "Resume no space above"
     (let(
          (expected-string "\
 /*******************************************************************************/
@@ -368,7 +368,7 @@
       )
     )
 
-(it "Test resume at top of buffer with no pre/postfix"
+(it "Resume at top of buffer with no pre/postfix"
     (let(
          (expected-string "
 /*                                                                             */
@@ -409,7 +409,7 @@
   """                              Test edge cases                              """
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  (it "Test resume on line that looks almost like block comment 1"
+  (it "Resume on line that looks almost like block comment 1"
     (let(
          (expected-string "")
          (result-string "")
@@ -439,7 +439,7 @@
       )
     )
 
-  (it "Test resume on line that looks almost like block comment 2"
+  (it "Resume on line that looks almost like block comment 2"
     (let(
          (expected-string "")
          (result-string "")

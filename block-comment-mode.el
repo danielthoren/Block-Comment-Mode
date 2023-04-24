@@ -17,9 +17,6 @@
 ;; elements. After this point, the new size of 3 is persistent, even
 ;; if point moves to a new row with a non-empty comment row above.
 
-;; TODO: Detect style assumes that current row is of body type.
-;;       Should detect if it is body or pre/postfix line
-
 ;; TODO: Test extensively, then tag for release 1 (write unit tests)
 
 ;; TODO: Fix all warning when building with cask
