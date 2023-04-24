@@ -2,6 +2,8 @@
 
 ;; Turn lexical binding off to enable desired behaviour of the :var form
 
+;; TODO: Finish last headings
+
 (add-to-list 'load-path "cask")
 (require 'block-comment-mode)
 
@@ -18,7 +20,7 @@
 """                               Entering text                               """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(it "Entering small text"
+(it "Enter small text"
     (let(
          (start-string "
 /*******************************************************************************/
@@ -43,11 +45,7 @@
 
       ;; Enable centering
       (block-comment-toggle-centering)
-
-      (dotimes (i (length insert-string))
-        (insert (aref insert-string i))
-        )
-
+      (user-write-text insert-string)
       (block-comment-abort)
 
       ;; Clean buffer and add newline at top for better error message
@@ -72,7 +70,7 @@
       )
     )
 
-(it "Entering large text"
+(it "Enter large text"
     (let(
          (start-string "
 /*******************************************************************************/
@@ -97,11 +95,7 @@
 
       ;; Enable centering
       (block-comment-toggle-centering)
-
-      (dotimes (i (length insert-string))
-        (insert (aref insert-string i))
-        )
-
+      (user-write-text insert-string)
       (block-comment-abort)
 
       ;; Clean buffer and add newline at top for better error message
@@ -126,7 +120,7 @@
       )
     )
 
-(it "Entering large text by paste"
+(it "Enter large text by paste"
     (let(
          (start-string "
 /*******************************************************************************/
@@ -182,7 +176,7 @@
 """                               Removing text                               """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(it "Removing text"
+(it "Remove text"
     (let(
          (start-string "
 /*******************************************************************************/
@@ -206,11 +200,7 @@
 
       ;; Enable centering
       (block-comment-toggle-centering)
-
-      (dotimes (i (length remove-string))
-        (delete-backward-char 1)
-        )
-
+      (user-remove-text (length remove-string))
       (block-comment-abort)
 
       ;; Clean buffer and add newline at top for better error message
@@ -235,7 +225,7 @@
       )
     )
 
-(it "Removing text by kill"
+(it "Remove text by kill"
     (let(
          (start-string "
 /*******************************************************************************/
@@ -286,5 +276,13 @@
       (expect result-string :to-equal (replace-p expected-string "   "))
       )
     )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+"""                         Entering text with no room                        """
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+"""                     Removing text with expanded comment                   """
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 )

@@ -2,7 +2,7 @@
 
 ;; Turn lexical binding off to enable desired behaviour of the :var form
 
-;; TODO: Add remove text tests
+;; TODO: Finish last headings
 
 (add-to-list 'load-path "cask")
 (require 'block-comment-mode)
@@ -16,9 +16,18 @@
     (erase-buffer)
     )
 
-  (it "Insert text"
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+"""                               Entering text                               """
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+  (it "Enter text"
     (let(
-         (user-text "User inserted this text")
+         (start-string "
+/*******************************************************************************/
+/*                                                                             */<p>
+/*******************************************************************************/
+")
+         (insert-string "User inserted this text ")
          (expected-string "
 /*******************************************************************************/
 /*  User inserted this text <p>                                                */
@@ -27,19 +36,209 @@
          (result-string "")
          )
 
-      ;; Init c++ block comment style
-      (block-comment--init-comment-style 80
-                                         "/*"   " "   "*/"
-                                         "/*"   "*"   "*/" )
+      (insert start-string)
+      (jump-to-p nil t)
 
-      ;; Insert block comment
+      ;; Resume block comment
+      (block-comment-start)
+      (user-write-text insert-string)
+      (block-comment-abort)
+
+      ;; Clean buffer and add newline at top for better error message
+      (whitespace-cleanup)
+
+      (setq result-string (buffer-string))
+
+      ;; Append newline at top for better error message
+      (setq result-string (concat "\n" result-string))
+
+      ;; Check that position of point is correct
+      (expect-point-at-p expected-string)
+
+      ;; Remove <p>
+      (setq expected-string (replace-p expected-string "   "))
+
+      ;; Make strings easier to read in terminal
+      (setq expected-string (make-whitespace-readable expected-string))
+      (setq result-string (make-whitespace-readable result-string))
+
+      (expect result-string :to-equal (replace-p expected-string "   "))
+      )
+    )
+
+(it "Enter text by paste"
+    (let(
+         (start-string "
+/*******************************************************************************/
+/*                                                                             */<p>
+/*******************************************************************************/
+")
+         (insert-string "User inserted this text ")
+         (expected-string "
+/*******************************************************************************/
+/*  User inserted this text <p>                                                */
+/*******************************************************************************/
+")
+         (result-string "")
+         )
+
+      (insert start-string)
+      (jump-to-p nil t)
+
+      ;; Resume block comment
       (block-comment-start)
 
-      (dotimes (i (length user-text))
-        (insert (aref user-text i))
-        )
+      ;; Insert text
+      (insert insert-string)
+      (block-comment-abort)
 
-      (forward-char)
+      ;; Clean buffer and add newline at top for better error message
+      (whitespace-cleanup)
+
+      (setq result-string (buffer-string))
+
+      ;; Append newline at top for better error message
+      (setq result-string (concat "\n" result-string))
+
+      ;; Check that position of point is correct
+      (expect-point-at-p expected-string)
+
+      ;; Remove <p>
+      (setq expected-string (replace-p expected-string "   "))
+
+      ;; Make strings easier to read in terminal
+      (setq expected-string (make-whitespace-readable expected-string))
+      (setq result-string (make-whitespace-readable result-string))
+
+      (expect result-string :to-equal (replace-p expected-string "   "))
+      )
+    )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+"""                               Removing text                               """
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(it "Remove text"
+  (let(
+         (start-string "
+/*******************************************************************************/
+/*  User inserted this text <p>                                                */
+/*******************************************************************************/
+")
+         (remove-string "inserted this text")
+         (expected-string "
+/*******************************************************************************/
+/*  User <p>                                                                   */
+/*******************************************************************************/
+")
+         (result-string "")
+         )
+
+      (insert start-string)
+      (jump-to-p nil t)
+
+      ;; Resume block comment
+      (block-comment-start)
+      (user-remove-text (length remove-string))
+      (block-comment-abort)
+
+      ;; Clean buffer and add newline at top for better error message
+      (whitespace-cleanup)
+
+      (setq result-string (buffer-string))
+
+      ;; Append newline at top for better error message
+      (setq result-string (concat "\n" result-string))
+
+      ;; Check that position of point is correct
+      (expect-point-at-p expected-string)
+
+      ;; Remove <p>
+      (setq expected-string (replace-p expected-string "   "))
+
+      ;; Make strings easier to read in terminal
+      (setq expected-string (make-whitespace-readable expected-string))
+      (setq result-string (make-whitespace-readable result-string))
+
+      (expect result-string :to-equal (replace-p expected-string "   "))
+      )
+  )
+
+(it "Remove text by kill"
+    (let(
+         (start-string "
+/*******************************************************************************/
+/*  User inserted this text <p>                                                */
+/*******************************************************************************/
+")
+         (remove-string "inserted this text")
+         (expected-string "
+/*******************************************************************************/
+/*  User <p>                                                                   */
+/*******************************************************************************/
+")
+         (result-string "")
+         )
+
+      (insert start-string)
+      (jump-to-p nil t)
+
+      ;; Resume block comment
+      (block-comment-start)
+
+      ;; Kill word
+      (backward-kill-word 3)
+
+      (block-comment-abort)
+
+      ;; Clean buffer and add newline at top for better error message
+      (whitespace-cleanup)
+
+      (setq result-string (buffer-string))
+
+      ;; Append newline at top for better error message
+      (setq result-string (concat "\n" result-string))
+
+      ;; Check that position of point is correct
+      (expect-point-at-p expected-string)
+
+      ;; Remove <p>
+      (setq expected-string (replace-p expected-string "   "))
+
+      ;; Make strings easier to read in terminal
+      (setq expected-string (make-whitespace-readable expected-string))
+      (setq result-string (make-whitespace-readable result-string))
+
+      (expect result-string :to-equal (replace-p expected-string "   "))
+      )
+    )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+"""                         Entering text with no room                        """
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(it "Enter text with no horizontal room"
+    (let(
+         (insert-string " User inserted this text")
+         (start-string "
+/******************************************************************************/
+/*                                    User text that existed before test. <p> */
+/******************************************************************************/
+")
+         (expected-string "
+/****************************************************************************************************/
+/*                                    User text that existed before test. User inserted this text<p>*/
+/****************************************************************************************************/
+")
+         (result-string "")
+         )
+
+      (insert start-string)
+      (jump-to-p "  ")
+
+      ;; Resume block comment
+      (block-comment-start)
+      (user-write-text insert-string)
       (block-comment-abort)
 
       ;; Clean buffer and add newline at top for better error message
@@ -53,10 +252,6 @@
       ;; Append newline at top for better error message
       (setq result-string (concat "\n" result-string))
 
-      ;; Append newline at end since the templates have this. Emacs
-      ;; automatically adds this when saving
-      (setq result-string (concat result-string "\n"))
-
       ;; Remove <p>
       (setq expected-string (replace-p expected-string "   "))
 
@@ -68,9 +263,9 @@
       )
     )
 
-(it "Insert text with no horizontal room"
+(it "Enter text by paste with no horizontal room"
     (let(
-         (user-text " User inserted this text")
+         (insert-string " User inserted this text")
          (start-string "
 /******************************************************************************/
 /*                                    User text that existed before test. <p> */
@@ -90,9 +285,8 @@
       ;; Resume block comment
       (block-comment-start)
 
-      (dotimes (i (length user-text))
-        (insert (aref user-text i))
-        )
+      ;; Insert text all at once
+      (insert insert-string)
 
       (block-comment-abort)
 
@@ -117,4 +311,11 @@
       (expect result-string :to-equal expected-string)
       )
     )
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+"""                     Removing text with expanded comment                   """
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 )

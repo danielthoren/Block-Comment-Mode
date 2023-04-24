@@ -77,4 +77,20 @@
   (replace-regexp-in-string " " char string nil 'literal)
   )
 
+(defun user-write-text (user-text)
+  """  Writes one char at a time to the current buffer to simulate            """
+  """  user input                                                             """
+  (dotimes (i (length user-text))
+    (insert (aref user-text i))
+    )
+  )
+
+(defun user-remove-text (num-of-chars)
+  """  Removes one char at a time from the current buffer to simulate         """
+  """  user removal                                                           """
+  (dotimes (i num-of-chars)
+    (delete-backward-char 1)
+    )
+  )
+
 (provide 'block-comment-test-helpers)

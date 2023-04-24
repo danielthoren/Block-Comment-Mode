@@ -1073,7 +1073,9 @@
       ;;;;;;;;;;;;;;;;;;;;;;;;;;; Left side ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
       ;; If no space on left side, perform operation on right side instead
-      (when (<= remain-space-left edge-offset)
+      ;; TODO: Remove old code?
+      ;; (when (<= remain-space-left edge-offset)
+      (when (<= remain-space-left left)
         (setq right (+ right left))
         (setq left 0)
         )
@@ -1084,11 +1086,13 @@
 
       ;;;;;;;;;;;;;;;;;;;;;;;;;;; Right side ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-      ;; Remove characters at end of line
+      ;; Remove/add characters at end of line
       (block-comment--jump-to-body-end 0)
 
-      (if (<= remain-space-right edge-offset)
-          ;; If there is no space left, make more space
+      ;; TODO: Remove old code?
+      ;; (if (<= remain-space-right edge-offset)
+      (if (<= remain-space-right right)
+          ;; If there is no space remaining, make more space
           (progn
             (insert (make-string right
                                  (string-to-char block-comment-fill))
