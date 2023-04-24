@@ -1,0 +1,17 @@
+
+* STARTED Implement 'user-edit-text-tests.el'
+* STARTED Implement 'user-edit-text-centering-tests.el'
+
+* TODO Implement 'user-align-text-tests.el'
+* TODO Implement 'user-move-cursor-tests.el'
+
+
+* STARTED Decide and do one of the following
+  Depending on when the width alignment is triggered. If it is only
+  triggered on resume, then they should be put in the resume tests
+  file. However, if it is triggered by text insertion or alignment as
+  well, its placement needs to be considered.
+
+** TODO Add width alignment tests to 'user-resume-tests.el' ?
+** TODO Add and implement 'user-width-alignment.el' ?
+** TODO Add width alignment tests to user-align-text-tests.el' ?
