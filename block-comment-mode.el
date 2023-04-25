@@ -11,6 +11,8 @@
 
 ;;; Commentary:
 
+;;;;;;;;;;;;;;;;;;;;;;;; Release 1 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;; FIXME: Bug in alignment with previous rows comment. After aligning
 ;; once with an empty comment row above, the list in the function
 ;; 'block-comment--align-get-next' decarese from 5 elements long, to 3
@@ -30,19 +32,24 @@
 
 ;; TODO: Swap argument order for init-comment-style to take preamble row first, then body
 
+;; TODO: Add docstring to all variables
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Release 2 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO: Auto detect if row uses centering: If the amount of space on both
+;;       sides of the user text is equal, or off by 1, assume that centering
+;;       should be used
+
+;; TODO: Fix default style based on prog mode
+
+;; TODO: implement offset between top enclose body and bottom enclose
 
 ;; TODO: Adhere to GNU coding convention:
 ;;       https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
 
 ;; TODO: Use chatgtp to improve functions/comments and fix doc style
 
-;; TODO: Add docstring to all variables
-
-;; TODO: Fix default style based on prog mode
-
-;; TODO: implement offset between top enclose body and bottom enclose
+;;;;;;;;;;;;;;;;;;;;;;;; Release 3 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; TODO: Split mode into multiple files
 

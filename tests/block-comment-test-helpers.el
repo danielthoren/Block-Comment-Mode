@@ -4,17 +4,17 @@
 
 (defvar p-string "<p>")
 
-(defun expect-buffer-equal (expected-string-with-p)
+(defun expect-buffer-equal (expected-string-with-p &optional replace-p-with)
   """  Expect buffer string and pointer pos in buffer string to be equal to     """
   """  the given string and the pointer position within it                      """
-
+  (unless replace-p-with (setq replace-p-with "   "))
   ;; Clean buffer and add newline at top for better error message
   (whitespace-cleanup)
 
   (let (
         (result-string (buffer-string))
         ;; Remove <p>
-        (expected-string (replace-p expected-string-with-p "   "))
+        (expected-string (replace-p expected-string-with-p replace-p-with))
         )
 
     ;; Append newline at top for better error message
