@@ -2,8 +2,6 @@
 
 ;; Turn lexical binding off to enable desired behaviour of the :var form
 
-;; TODO: Finish last headings
-
 (add-to-list 'load-path "cask")
 (require 'block-comment-mode)
 
@@ -193,11 +191,208 @@
     )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-"""                         Entering text with no room                        """
+"""                         Editing text with no room                         """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(it "Enter text with no horizontal room"
+    (let(
+         (insert-string ". User inserted this text")
+         (start-string "
+/******************************************************************************/
+/*  User text that existed before test. It is almost as wide as the comment<p>*/
+/******************************************************************************/
+")
+         (expected-string "
+/*******************************************************************************************************/
+/*  User text that existed before test. It is almost as wide as the comment. User inserted this text<p>*/
+/*******************************************************************************************************/
+")
+         (result-string "")
+         )
+
+      (insert start-string)
+      (jump-to-p "  ")
+
+      ;; Resume block comment
+      (block-comment-start)
+      (user-write-text insert-string)
+      (block-comment-abort)
+
+      ;; Clean buffer and add newline at top for better error message
+      (whitespace-cleanup)
+
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
+      )
+    )
+
+(it "Remove text with no horizontal room"
+    (let(
+         (start-string "
+/*******************************************************************************************************/
+/*  User text that existed before test. It is almost as wide as the comment. User inserted this text<p>*/
+/*******************************************************************************************************/
+")
+         (remove-string "inserted this text")
+         (expected-string "
+/*************************************************************************************/
+/*  User text that existed before test. It is almost as wide as the comment. User <p>*/
+/*************************************************************************************/
+")
+         (result-string "")
+         )
+
+      (insert start-string)
+      (jump-to-p "  ")
+
+      ;; Resume block comment
+      (block-comment-start)
+      (user-remove-text (length remove-string))
+      (block-comment-abort)
+
+      ;; Clean buffer and add newline at top for better error message
+      (whitespace-cleanup)
+
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
+      )
+    )
+
+(it "Remove text with no horizontal room until target width"
+    (let(
+         (start-string "
+/*******************************************************************************************************/
+/*  User text that existed before test. It is almost as wide as the comment. User inserted this text<p>*/
+/*******************************************************************************************************/
+")
+         (remove-string ". User inserted this text")
+         (expected-string "
+/*******************************************************************************/
+/*  User text that existed before test. It is almost as wide as the comment<p> */
+/*******************************************************************************/
+")
+         (result-string "")
+         )
+
+      (insert start-string)
+      (jump-to-p "  ")
+
+      ;; Resume block comment
+      (block-comment-start)
+      (user-remove-text (length remove-string))
+      (block-comment-abort)
+
+      ;; Clean buffer and add newline at top for better error message
+      (whitespace-cleanup)
+
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
+      )
+    )
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-"""                     Removing text with expanded comment                   """
+"""                   Edit text by kill/insert with no room                   """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(it "Enter text by paste with no horizontal room"
+    (let(
+         (insert-string ". User inserted this text")
+         (start-string "
+/******************************************************************************/
+/*  User text that existed before test. It is almost as wide as the comment<p>*/
+/******************************************************************************/
+")
+         (expected-string "
+/*******************************************************************************************************/
+/*  User text that existed before test. It is almost as wide as the comment. User inserted this text<p>*/
+/*******************************************************************************************************/
+")
+         (result-string "")
+         )
+
+      (insert start-string)
+      (jump-to-p "  ")
+
+      ;; Resume block comment
+      (block-comment-start)
+      (insert insert-string)
+      (block-comment-abort)
+
+      ;; Clean buffer and add newline at top for better error message
+      (whitespace-cleanup)
+
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
+      )
+    )
+
+(it "Remove text by kill with no horizontal room"
+    (let(
+         (start-string "
+/*******************************************************************************************************/
+/*  User text that existed before test. It is almost as wide as the comment. User inserted this text<p>*/
+/*******************************************************************************************************/
+")
+         (remove-string "inserted this text")
+         (expected-string "
+/*************************************************************************************/
+/*  User text that existed before test. It is almost as wide as the comment. User <p>*/
+/*************************************************************************************/
+")
+         (result-string "")
+         )
+
+      (insert start-string)
+      (jump-to-p "  ")
+
+      ;; Resume block comment
+      (block-comment-start)
+
+      ;; Kill word
+      (backward-kill-word 3)
+
+      (block-comment-abort)
+
+      ;; Clean buffer and add newline at top for better error message
+      (whitespace-cleanup)
+
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
+      )
+    )
+
+(it "Remove text by kill with no horizontal room until target width"
+    (let(
+         (start-string "
+/*******************************************************************************************************/
+/*  User text that existed before test. It is almost as wide as the comment. User inserted this text<p>*/
+/*******************************************************************************************************/
+")
+         (remove-string ". User inserted this text")
+         (expected-string "
+/*******************************************************************************/
+/*  User text that existed before test. It is almost as wide as the <p>        */
+/*******************************************************************************/
+")
+         (result-string "")
+         )
+
+      (insert start-string)
+      (jump-to-p "  ")
+
+      ;; Resume block comment
+      (block-comment-start)
+
+      ;; Kill word
+      (backward-kill-word 5)
+
+      (block-comment-abort)
+
+      ;; Clean buffer and add newline at top for better error message
+      (whitespace-cleanup)
+
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
+      )
+    )
 )

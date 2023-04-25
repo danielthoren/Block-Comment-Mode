@@ -1,6 +1,8 @@
 
-* STARTED Implement 'user-edit-text-tests.el'
-* STARTED Implement 'user-edit-text-centering-tests.el'
+* DONE Implement 'user-edit-text-tests.el'
+  CLOSED: [2023-04-25 Tue 15:56]
+* DONE Implement 'user-edit-text-centering-tests.el'
+  CLOSED: [2023-04-25 Tue 16:22]
 
 * TODO Implement 'user-align-text-tests.el'
 * TODO Implement 'user-move-cursor-tests.el'

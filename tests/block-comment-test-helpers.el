@@ -4,29 +4,31 @@
 
 (defvar p-string "<p>")
 
-(defun expect-buffer-equal (string-with-p)
+(defun expect-buffer-equal (expected-string-with-p)
   """  Expect buffer string and pointer pos in buffer string to be equal to     """
   """  the given string and the pointer position within it                      """
 
   ;; Clean buffer and add newline at top for better error message
   (whitespace-cleanup)
 
-  (setq result-string (buffer-string))
+  (let (
+        (result-string (buffer-string))
+        ;; Remove <p>
+        (expected-string (replace-p expected-string-with-p "   "))
+        )
 
-  ;; Append newline at top for better error message
-  (setq result-string (concat "\n" result-string))
+    ;; Append newline at top for better error message
+    (setq result-string (concat "\n" result-string))
 
-  ;; Check that position of point is correct
-  (expect-point-at-p expected-string)
+    ;; Make strings easier to read in terminal
+    (setq expected-string (make-whitespace-readable expected-string))
+    (setq result-string (make-whitespace-readable result-string))
 
-  ;; Remove <p>
-  (setq expected-string (replace-p expected-string "   "))
+    (expect result-string :to-equal (replace-p expected-string "   "))
 
-  ;; Make strings easier to read in terminal
-  (setq expected-string (make-whitespace-readable expected-string))
-  (setq result-string (make-whitespace-readable result-string))
-
-  (expect result-string :to-equal (replace-p expected-string "   "))
+    ;; Check that position of point is correct
+    (expect-point-at-p expected-string-with-p)
+    )
   )
 
 (defun jump-to-p (&optional replace-p-with delete-p)
