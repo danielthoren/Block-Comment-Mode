@@ -44,25 +44,8 @@
       (user-write-text insert-string)
       (block-comment-abort)
 
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Check that position of point is correct
-      (expect-point-at-p expected-string)
-
-      ;; Remove <p>
-      (setq expected-string (replace-p expected-string "   "))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal (replace-p expected-string "   "))
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
       )
     )
 
@@ -92,25 +75,8 @@
       (insert insert-string)
       (block-comment-abort)
 
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Check that position of point is correct
-      (expect-point-at-p expected-string)
-
-      ;; Remove <p>
-      (setq expected-string (replace-p expected-string "   "))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal (replace-p expected-string "   "))
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
       )
     )
 
@@ -142,25 +108,8 @@
       (user-remove-text (length remove-string))
       (block-comment-abort)
 
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Check that position of point is correct
-      (expect-point-at-p expected-string)
-
-      ;; Remove <p>
-      (setq expected-string (replace-p expected-string "   "))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal (replace-p expected-string "   "))
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
       )
   )
 
@@ -191,25 +140,8 @@
 
       (block-comment-abort)
 
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Check that position of point is correct
-      (expect-point-at-p expected-string)
-
-      ;; Remove <p>
-      (setq expected-string (replace-p expected-string "   "))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal (replace-p expected-string "   "))
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
       )
     )
 
@@ -244,22 +176,8 @@
       ;; Clean buffer and add newline at top for better error message
       (whitespace-cleanup)
 
-      ;; Check that position of point is correct
-      (expect-point-at-p expected-string)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Remove <p>
-      (setq expected-string (replace-p expected-string "   "))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal expected-string)
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
       )
     )
 
@@ -290,25 +208,8 @@
 
       (block-comment-abort)
 
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
-
-      ;; Check that position of point is correct
-      (expect-point-at-p expected-string)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Remove <p>
-      (setq expected-string (replace-p expected-string "   "))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal expected-string)
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
       )
     )
 

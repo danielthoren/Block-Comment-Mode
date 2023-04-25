@@ -22,9 +22,8 @@
     (let(
          (expected-string "
 /*******************************************************************************/
-/*                                                                             */
-/*******************************************************************************/
-")
+/*  <p>                                                                        */
+/*******************************************************************************/")
          (result-string "")
          )
 
@@ -37,25 +36,8 @@
       (block-comment-start)
       (block-comment-abort)
 
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Append newline at end since the templates have this. Emacs
-      ;; automatically adds this when saving
-      (setq result-string (concat result-string "\n"))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal expected-string)
-      (expect (line-number-at-pos) :to-be 2)
-      (expect (current-column) :to-be 4)
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
       )
     )
 
@@ -63,9 +45,8 @@
     (let(
          (expected-string "
 /*******************************************************************************/
-/*                                                                             */
-/*******************************************************************************/
-")
+/*                                      <p>                                    */
+/*******************************************************************************/")
          (result-string "")
          )
 
@@ -80,25 +61,8 @@
       (block-comment-toggle-centering)
       (block-comment-abort)
 
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Append newline at end since the templates have this. Emacs
-      ;; automatically adds this when saving
-      (setq result-string (concat result-string "\n"))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal expected-string)
-      (expect (line-number-at-pos) :to-be 2)
-      (expect (current-column) :to-be 40)
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
       )
     )
 
@@ -107,9 +71,8 @@
          (indent 2)
          (expected-string "
   /*****************************************************************************/
-  /*                                                                           */
-  /*****************************************************************************/
-")
+  /*  <p>                                                                      */
+  /*****************************************************************************/")
          (result-string "")
          )
 
@@ -124,25 +87,8 @@
       (block-comment-start)
       (block-comment-abort)
 
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Append newline at end since the templates have this. Emacs
-      ;; automatically adds this when saving
-      (setq result-string (concat result-string "\n"))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal expected-string)
-      (expect (line-number-at-pos) :to-be 2)
-      (expect (current-column) :to-be (+ 4 indent))
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
       )
     )
 
@@ -151,9 +97,8 @@
          (indent 61)
          (expected-string "
                                                              /******************/
-                                                             /*                */
-                                                             /******************/
-")
+                                                             /*  <p>           */
+                                                             /******************/")
          (result-string "")
          )
 
@@ -170,25 +115,8 @@
       (block-comment-start)
       (block-comment-abort)
 
-      ;; Clean buffer
-      (whitespace-cleanup)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Append newline at end since the templates have this. Emacs
-      ;; automatically adds this when saving
-      (setq result-string (concat result-string "\n"))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal expected-string)
-      (expect (line-number-at-pos) :to-be 2)
-      (expect (current-column) :to-be (+ 4 indent))
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
       )
     )
 
@@ -236,9 +164,8 @@
     (let(
          (expected-string "
 /*******************************************************************************/
-/*                                                                             */
-/*******************************************************************************/
-")
+/*  <p>                                                                        */
+/*******************************************************************************/")
          (result-string "")
          )
 
@@ -251,25 +178,8 @@
       (block-comment-start)
       (block-comment-abort)
 
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Append newline at end since the templates have this. Emacs
-      ;; automatically adds this when saving
-      (setq result-string (concat result-string "\n"))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal expected-string)
-      (expect (line-number-at-pos) :to-be 2)
-      (expect (current-column) :to-be 4)
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
       )
     )
 
@@ -277,9 +187,8 @@
     (let(
          (expected-string "
 /********************************************************************************
- ***                                                                          ***
- *******************************************************************************/
-")
+ ***  <p>                                                                     ***
+ *******************************************************************************/")
          (result-string "")
          )
 
@@ -293,25 +202,8 @@
       (block-comment-start)
       (block-comment-abort)
 
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Append newline at end since the templates have this. Emacs
-      ;; automatically adds this when saving
-      (setq result-string (concat result-string "\n"))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal expected-string)
-      (expect (line-number-at-pos) :to-be 2)
-      (expect (current-column) :to-be 6)
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
       )
     )
 
@@ -319,9 +211,8 @@
     (let(
          (expected-string "
 #################################################################################
-\"\"\"                                                                           \"\"\"
-#################################################################################
-")
+\"\"\"  <p>                                                                      \"\"\"
+#################################################################################")
          (result-string "")
          )
 
@@ -334,25 +225,8 @@
       (block-comment-start)
       (block-comment-abort)
 
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Append newline at end since the templates have this. Emacs
-      ;; automatically adds this when saving
-      (setq result-string (concat result-string "\n"))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal expected-string)
-      (expect (line-number-at-pos) :to-be 2)
-      (expect (current-column) :to-be 5)
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
       )
     )
 
@@ -360,9 +234,8 @@
     (let(
          (expected-string "
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-\"\"\"                                                                           \"\"\"
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-")
+\"\"\"  <p>                                                                      \"\"\"
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
          (result-string "")
          )
 
@@ -375,25 +248,8 @@
       (block-comment-start)
       (block-comment-abort)
 
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Append newline at end since the templates have this. Emacs
-      ;; automatically adds this when saving
-      (setq result-string (concat result-string "\n"))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal expected-string)
-      (expect (line-number-at-pos) :to-be 2)
-      (expect (current-column) :to-be 5)
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
       )
     )
 
@@ -401,9 +257,8 @@
     (let(
          (expected-string "
 #################################################################################
-#                                                                               #
-#################################################################################
-")
+#  <p>                                                                          #
+#################################################################################")
          (result-string "")
          )
 
@@ -416,25 +271,8 @@
       (block-comment-start)
       (block-comment-abort)
 
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Append newline at end since the templates have this. Emacs
-      ;; automatically adds this when saving
-      (setq result-string (concat result-string "\n"))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal expected-string)
-      (expect (line-number-at-pos) :to-be 2)
-      (expect (current-column) :to-be 3)
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
       )
     )
 

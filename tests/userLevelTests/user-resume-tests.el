@@ -19,131 +19,16 @@
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (it "Resume non-centering"
-    (let(
-         (expected-string "
-/*******************************************************************************/
-/*                                                                             */<p>
-/*******************************************************************************/
-")
-         (result-string "")
-         )
-
-      ;; Insert block comment and put point at correct position
-      (insert expected-string)
-      (jump-to-p nil t)
-      (setq expected-string (remove-p expected-string))
-
-      ;; Insert block comment
-      (block-comment-start)
-      (block-comment-abort)
-
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal expected-string)
-      (expect (line-number-at-pos) :to-be 2)
-      (expect (current-column) :to-be 4)
-      )
-    )
-
-(it "Resume centering"
-    (let(
-         (expected-string "
-/*******************************************************************************/
-/*                                                                             */<p>
-/*******************************************************************************/
-")
-         (result-string "")
-         )
-
-      ;; Insert block comment and put point at correct position
-      (insert expected-string)
-      (jump-to-p nil t)
-      (setq expected-string (remove-p expected-string))
-
-      ;; Insert block comment
-      (block-comment-start)
-
-      ;; Set centering to t
-      (block-comment-toggle-centering)
-
-      (block-comment-abort)
-
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal expected-string)
-      (expect (line-number-at-pos) :to-equal 2)
-      (expect (current-column) :to-equal 40)
-      )
-    )
-
-(it "Resume with comment text"
-    (let(
-         (expected-string "
-/*******************************************************************************/
-/*                 has comment text                                            */<p>
-/*******************************************************************************/
-")
-         (result-string "")
-         )
-
-      ;; Insert block comment and put point at correct position
-      (insert expected-string)
-      (jump-to-p nil t)
-      (setq expected-string (remove-p expected-string))
-
-      ;; Insert block comment
-      (block-comment-start)
-      (block-comment-abort)
-
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal expected-string)
-      (expect (line-number-at-pos) :to-be 2)
-      (expect (current-column) :to-be 35)
-      )
-    )
-
-(it "Resume with width alignment"
-    (let(
-         (expected-string "
-/*******************************************************************************/
-/*                                                                             */
-/*******************************************************************************/
-")
+  (let(
          (start-string "
-/**************************************************/
-/*                                                             */<p>
-/*******************************************************************/
+/*******************************************************************************/
+/*                                                                             */<p>
+/*******************************************************************************/
+")
+         (expected-string "
+/*******************************************************************************/
+/*  <p>                                                                        */
+/*******************************************************************************/
 ")
          (result-string "")
          )
@@ -156,29 +41,18 @@
       (block-comment-start)
       (block-comment-abort)
 
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal expected-string)
-      (expect (line-number-at-pos) :to-be 2)
-      (expect (current-column) :to-be 4)
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
       )
     )
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-"""                           Test Resume positions                           """
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(it "Resume from inside comment"
-    (let(
+(it "Resume centering"
+  (let(
+         (start-string "
+/*******************************************************************************/
+/*                                                                             */<p>
+/*******************************************************************************/
+")
          (expected-string "
 /*******************************************************************************/
 /*                                      <p>                                    */
@@ -188,66 +62,135 @@
          )
 
       ;; Insert block comment and put point at correct position
-      (insert expected-string)
-      (jump-to-p "   " t)
-      (setq expected-string (replace-p expected-string "   "))
+      (insert start-string)
+      (jump-to-p nil t)
 
       ;; Insert block comment
       (block-comment-start)
+
+      ;; Set centering to t
+      (block-comment-toggle-centering)
+
       (block-comment-abort)
 
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal expected-string)
-      (expect (line-number-at-pos) :to-be 2)
-      (expect (current-column) :to-be 4)
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
       )
     )
 
-(it "Resume from beginning-of-line"
-    (let(
+(it "Resume with comment text"
+  (let(
+         (start-string "
+/*******************************************************************************/
+/*                 has comment text                                            */<p>
+/*******************************************************************************/
+")
          (expected-string "
 /*******************************************************************************/
-<p>/*                                                                             */
+/*                 has comment text<p>                                         */
 /*******************************************************************************/
 ")
          (result-string "")
          )
 
       ;; Insert block comment and put point at correct position
-      (insert expected-string)
+      (insert start-string)
       (jump-to-p nil t)
-      (setq expected-string (remove-p expected-string))
 
       ;; Insert block comment
       (block-comment-start)
       (block-comment-abort)
 
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
+      )
+    )
 
-      (setq result-string (buffer-string))
+(it "Resume with width alignment"
+  (let(
+         (start-string "
+/**************************************************/
+/*                                                             */<p>
+/*******************************************************************/
+")
+         (expected-string "
+/*******************************************************************************/
+/*  <p>                                                                        */
+/*******************************************************************************/
+")
+         (result-string "")
+         )
 
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
+      ;; Insert block comment and put point at correct position
+      (insert start-string)
+      (jump-to-p nil t)
 
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
+      ;; Insert block comment
+      (block-comment-start)
+      (block-comment-abort)
 
-      (expect result-string :to-equal expected-string)
-      (expect (line-number-at-pos) :to-be 2)
-      (expect (current-column) :to-be 4)
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
+      )
+    )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+"""                           Test Resume positions                           """
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(it "Resume from inside comment"
+  (let(
+         (start-string "
+/*******************************************************************************/
+/*                                      <p>                                    */
+/*******************************************************************************/
+")
+         (expected-string "
+/*******************************************************************************/
+/*  <p>                                                                        */
+/*******************************************************************************/
+")
+         (result-string "")
+         )
+
+      ;; Insert block comment and put point at correct position
+      (insert start-string)
+      (jump-to-p "   " t)
+
+      ;; Insert block comment
+      (block-comment-start)
+      (block-comment-abort)
+
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
+      )
+    )
+
+(it "Resume from beginning-of-line"
+  (let(
+         (start-string "
+/*******************************************************************************/
+<p>/*                                                                             */
+/*******************************************************************************/
+")
+         (expected-string "
+/*******************************************************************************/
+/*  <p>                                                                        */
+/*******************************************************************************/
+")
+         (result-string "")
+         )
+
+      ;; Insert block comment and put point at correct position
+      (insert start-string)
+      (jump-to-p nil t)
+
+      ;; Insert block comment
+      (block-comment-start)
+      (block-comment-abort)
+
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
       )
     )
 
@@ -256,7 +199,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (it "Resume on preamble row no space"
-    (let(
+  (let(
          (expected-string "\
 /*******************************************************************************/<p>
 /*                                                                             */
@@ -299,40 +242,32 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (it "Resume no space beneath"
-    (let(
-         (expected-string "
+  (let(
+         (start-string "
 /*******************************************************************************/
 /*                                                                             */<p>
-/*******************************************************************************/")
+/*******************************************************************************/
+")
+         (expected-string "
+/*******************************************************************************/
+/*  <p>                                                                        */
+/*******************************************************************************/
+")
          (result-string "")
          )
 
       ;; Insert block comment and put point at correct position
-      (insert expected-string)
+      (insert start-string)
       (jump-to-p nil t)
-      (setq expected-string (remove-p expected-string))
 
       ;; Insert block comment
       (block-comment-start)
       (block-comment-abort)
 
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal expected-string)
-      (expect (line-number-at-pos) :to-be 2)
-      (expect (current-column) :to-be 4)
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
       )
-    )
+  )
 
 (it "Resume no space above"
     (let(
@@ -353,6 +288,9 @@
       (block-comment-start)
       (block-comment-abort)
 
+      ;; NOTE: Cannot use helper function since it appends a newline at the top
+      ;;       to get better readability in the error message
+
       ;; Clean buffer and add newline at top for better error message
       (whitespace-cleanup)
 
@@ -369,12 +307,12 @@
     )
 
 (it "Resume at top of buffer with no pre/postfix"
-    (let(
-         (expected-string "
-/*                                                                             */
-")
+  (let(
          (start-string "
 /*                                                      */<p>
+")
+         (expected-string "
+/*  <p>                                                                        */
 ")
          (result-string "")
          )
@@ -387,21 +325,8 @@
       (block-comment-start)
       (block-comment-abort)
 
-      ;; Clean buffer and add newline at top for better error message
-      (whitespace-cleanup)
-
-      (setq result-string (buffer-string))
-
-      ;; Append newline at top for better error message
-      (setq result-string (concat "\n" result-string))
-
-      ;; Make strings easier to read in terminal
-      (setq expected-string (make-whitespace-readable expected-string))
-      (setq result-string (make-whitespace-readable result-string))
-
-      (expect result-string :to-equal expected-string)
-      (expect (line-number-at-pos) :to-be 1)
-      (expect (current-column) :to-be 4)
+      ;; Check for equality
+      (expect-buffer-equal expected-string)
       )
     )
 
