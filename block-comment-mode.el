@@ -175,7 +175,7 @@
         )
     (block-comment-newline)
     (when has-prev-comment
-        (block-comment--align :prev-start)
+      (block-comment--align :prev-start)
       )
     )
   )
