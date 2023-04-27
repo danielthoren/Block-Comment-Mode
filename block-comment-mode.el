@@ -11,7 +11,7 @@
 
 ;;; Commentary:
 
-;;;;;;;;;;;;;;;;;;;;;;;; Release 1 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;; Release 1 (Initial functionality) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; FIXME: Bug in alignment with previous rows comment. After aligning
 ;; once with an empty comment row above, the list in the function
@@ -23,6 +23,17 @@
 
 ;; TODO: Fix all warning when building with cask
 
+;; TODO: Swap argument order for init-comment-style to take preamble row first, then body
+
+;; TODO: Add docstring to all variables
+
+;;;;;;;;;;;;;;;;;;;;;;;; Release 2 (stability & cleanup) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO: Investigate why function 'block-comment--is-comment' is called so many times
+;;       when moving between rows in the block comment
+;;       NOTE: Only function 'block-comment-centering--cursor-moved' should be called.
+;;             Might be a problem with the hooks?
+
 ;; TODO: Look over how local variables are managed:
 ;;      TODO: Look over initializations:
 ;;            * Variables are default inited in insert-or-resume after the current
@@ -30,11 +41,12 @@
 ;;      TODO: Look over variable defenitions, should these happen in the define
 ;;            -minor-mode? Now they are re-defined regularly in default-init-variables
 
-;; TODO: Swap argument order for init-comment-style to take preamble row first, then body
+;; TODO: Adhere to GNU coding convention:
+;;       https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
 
-;; TODO: Add docstring to all variables
+;; TODO: Use chatgtp to improve functions/comments and fix doc style
 
-;;;;;;;;;;;;;;;;;;;;;;;; Release 2 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;; Release 3 (Add features) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; TODO: Auto detect if row uses centering: If the amount of space on both
 ;;       sides of the user text is equal, or off by 1, assume that centering
@@ -43,13 +55,6 @@
 ;; TODO: Fix default style based on prog mode
 
 ;; TODO: implement offset between top enclose body and bottom enclose
-
-;; TODO: Adhere to GNU coding convention:
-;;       https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
-
-;; TODO: Use chatgtp to improve functions/comments and fix doc style
-
-;;;;;;;;;;;;;;;;;;;;;;;; Release 3 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; TODO: Split mode into multiple files
 
@@ -280,13 +285,13 @@
 
   ;; Set comment body start pos
   (save-excursion
-    (block-comment--jump-to-body-start 0)
+    (block-comment--jump-to-body-start)
     (setq block-comment-centering--start-pos (point-marker))
     )
 
   ;; Set comment body end pos
   (save-excursion
-    (block-comment--jump-to-body-end 0)
+    (block-comment--jump-to-body-end)
     (setq block-comment-centering--end-pos (point-marker))
     )
   )
@@ -421,8 +426,9 @@
   (let* (
          (start (marker-position block-comment-centering--start-pos))
          (end (marker-position block-comment-centering--end-pos))
-         (cur (point-marker))
+         (cur (marker-position (point-marker)))
          )
+
     (if (or (< cur start) (< end cur))  ;; If outside of row boundry
         (if (block-comment--is-body t)  ;; If still in a block comment body
             (progn ;; Set up variables for new row
@@ -2016,13 +2022,13 @@
   )
 
 (defun block-comment--is-body (&optional inside-body)
-  (interactive)
   """ Checks if the current row follows the format of a block comment body    """
   """  Param 'inside': specifies if point is required to be inside of the     """
   """                body or not:                                             """
   """                t   -> Point must be inside the body                     """
   """                nil -> Point must be on the same row as body             """
   """                Default: nil                                             """
+  (unless inside-body (setq inside-body nil))
 
   (block-comment--is-comment block-comment-prefix
                              block-comment-fill
@@ -2084,8 +2090,8 @@
 
 (defun block-comment--is-comment (prefix fill postfix &optional inside)
   (interactive)
-  """ checks if the current row follows the format of a block comment body     """
-  """ with the given prefix, fill and postfix.                                 """
+  """  Checks if the current row follows the format of a block comment body    """
+  """  with the given prefix, fill and postfix.                                """
   """  Param 'prefix' : The prefix to look for                                 """
   """  Param 'fill' : The fill to use                                          """
   """  Param 'postfix' : The postfix to look for                               """
@@ -2093,6 +2099,8 @@
   """                body or not:                                              """
   """       t   -> Point must be inside the body                               """
   """       nil -> Point must be on the same row as body                       """
+  (unless inside (setq inside nil))
+
   (let (
         (read-prefix-pos nil)   ;; Position of current row:s prefix
         (read-postfix-pos nil)  ;; Position of current row:s postfix
@@ -2123,8 +2131,8 @@
            read-postfix-pos)
 
       (setq point-in-body (and
-                           (> (point-marker) read-prefix-pos)
-                           (< (point-marker) read-postfix-pos)
+                           (> (point-marker) (+ read-prefix-pos block-comment-edge-offset))
+                           (< (point-marker) (- read-postfix-pos block-comment-edge-offset))
                            )))
 
     ;; Return value, t if in block comment row, else nil
