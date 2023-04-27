@@ -13,12 +13,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Release 1 (Initial functionality) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; FIXME: Bug in alignment with previous rows comment. After aligning
-;; once with an empty comment row above, the list in the function
-;; 'block-comment--align-get-next' decarese from 5 elements long, to 3
-;; elements. After this point, the new size of 3 is persistent, even
-;; if point moves to a new row with a non-empty comment row above.
-
 ;; TODO: Test extensively, then tag for release 1 (write unit tests)
 
 ;; TODO: Fix all warning when building with cask
@@ -71,6 +65,8 @@
 ;;; Code:
 
 ;; Global variables shared between buffers
+;; TODO: Should these be global?
+;;       Many should probably be local since they are set by the mode hook
 (defvar block-comment-width 80)
 (defvar block-comment-prefix nil)
 (defvar block-comment-fill nil)
@@ -112,14 +108,11 @@
 
 ;; Variables used in function 'block-comment--align-get-next' that needs to be
 ;; dynamically bound since they are inserted into a list then sorted using a lambda
-
-;; TODO: Add block comment prefix if no other solution is found
 (defvar-local body-start-distance nil)
 (defvar-local prev-indent-start-distance nil)
 (defvar-local prev-indent-end-distance nil)
 (defvar-local body-end-distance nil)
 (defvar-local body-center-distance nil)
-
 
 (define-minor-mode block-comment-mode
   "Toggle block comments mode"
@@ -1223,9 +1216,9 @@
         (comment-text-start nil) ;; Start of comment text
         (comment-text-end nil)   ;; End of comment text
         (body-start nil)         ;; The body start position
-        (prev-indent-start 0)    ;; The first char position of the text in the previous block comment
-        (body-center 0)          ;; Body center position
-        (prev-indent-end 0)      ;; The last char position of the text in the previous block comment
+        (prev-indent-start nil)  ;; The first char position of the text in the previous block comment
+        (body-center nil)        ;; Body center position
+        (prev-indent-end nil)    ;; The last char position of the text in the previous block comment
         (body-end nil)           ;; Body end position
         (text-center nil)        ;; The center of the comment text
         )
@@ -1240,10 +1233,11 @@
             (block-comment--jump-to-first-char-in-body)
             (setq comment-text-start (current-column))
             ))
-      ;; If no text exist, use current position
-      (progn)
-      (setq comment-text-start (current-column))
-      (setq comment-text-end (current-column))
+      ;; If no text exist, use current position for both
+      (progn
+        (setq comment-text-start (current-column))
+        (setq comment-text-end (current-column))
+        )
       )
 
     ;; Find internal indent of previous row
@@ -1259,7 +1253,8 @@
 
         (block-comment--jump-to-last-char-in-body)
         (setq prev-indent-end (current-column))
-        ))
+        )
+      )
 
     ;; Find body start/center/end positions
     (save-excursion
@@ -1273,62 +1268,69 @@
       (setq body-end (current-column))
       )
 
-    ;; TODO: Scoping issue with lambda
-    (setq body-start-distance (- body-start comment-text-start))
-    (setq prev-indent-start-distance (- prev-indent-start comment-text-start))
-    (setq prev-indent-end-distance (- prev-indent-end comment-text-start))
-    (setq body-end-distance (- body-end comment-text-start))
+    (setq-local body-start-distance (- body-start comment-text-start))
 
-    ;; The center of the comment text
+    (when prev-indent-start
+      (setq-local prev-indent-start-distance (- prev-indent-start comment-text-start)))
+
+    (when prev-indent-end
+      (setq-local prev-indent-end-distance (- prev-indent-end comment-text-start)))
+
+    (setq-local body-end-distance (- body-end comment-text-start))
+
+    ;; The offset from 'comment-text-start' to the center of the comment text
     (setq text-center (if (= comment-text-start comment-text-end)
-                     comment-text-start
-                   (ceiling (- comment-text-end comment-text-start)
-                            2)))
+                          0
+                        (ceiling (- comment-text-end comment-text-start) 2)))
+
     ;; Distance from text center to body center
-    (setq body-center-distance (- body-center
-                             (+ comment-text-start
-                                text-center)))
+    (setq-local body-center-distance (- body-center
+                                        (+ comment-text-start
+                                           text-center)))
 
     (let* (
-          (list '((body-start-distance . :start)
-                  (body-center-distance . :center)
-                  (prev-indent-start-distance . :prev-start)
-                  (prev-indent-end-distance . :prev-end)
-                  (body-end-distance . :end)))
+           (distances-list (list (cons 'body-start-distance :start)
+                                 (cons 'body-center-distance :center)
+                                 (cons 'body-end-distance :end)))
 
-          (curr-elem 0)
-          )
+           (curr-elem 0)
+           )
+
+      ;; Only add elements depending on previous row if there is a previous row
+      (when prev-indent-start-distance
+        (add-to-list 'distances-list (cons 'prev-indent-start-distance :prev-start)))
+
+      (when prev-indent-end-distance
+        (add-to-list 'distances-list (cons 'prev-indent-end-distance :prev-end)))
 
       ;; Sort by distance
-      (setq list (sort list
-                       (lambda (a b)
-                         (< (symbol-value (car a)) (symbol-value (car b))))))
+      (setq distances-list (sort distances-list
+                                 (lambda (a b)
+                                   (< (symbol-value (car a)) (symbol-value (car b))))))
 
       ;; Iterate until first distance larger than 0 that can fit
       ;; inside of the body is found, or until the end of the list.
-      (while (and (< curr-elem (- (length list) 1))
-                  (or (>= 0 (symbol-value (car (nth curr-elem list))))
-                      (< (- body-end (+ comment-text-end (symbol-value (car (nth curr-elem list))))) 0 )
+      (while (and (< curr-elem (- (length distances-list) 1))
+                  (or (>= 0 (symbol-value (car (nth curr-elem distances-list))))
+                      (< (- body-end (+ comment-text-end (symbol-value (car (nth curr-elem distances-list))))) 0 )
                       )
                   )
-
         (setq curr-elem (+ curr-elem 1))
         )
 
-      ;; If curr elem is end alignment, check if we should wrap around.
       ;; When text already is end-aligned, wrap around to start aligned
-      (when (and (= curr-elem (- (length list) 1))
+      (when (and (= curr-elem (- (length distances-list) 1))
                  (>= comment-text-end body-end))
         (setq curr-elem 0)
         )
 
       ;; If no text on row, when reaching end position the curr elem will be
       ;; nil. Wrap around fixed here
-      (unless (nth curr-elem list)
+      (unless (nth curr-elem distances-list)
         (setq curr-elem 0)
         )
 
-      (cdr (nth curr-elem list))
+      (cdr (nth curr-elem distances-list))
       )
     )
   )
