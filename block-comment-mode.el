@@ -11,56 +11,6 @@
 
 ;;; Commentary:
 
-;;;;;;;;;;;;;;;;;;;;;;;; Release 1 (Initial functionality) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; TODO: Fix all warning when building with cask
-
-;; TODO: Add docstring to all variables
-
-;;;;;;;;;;;;;;;;;;;;;;;; Release 2 (stability & cleanup) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; TODO: Investigate why function 'block-comment--is-comment' is called so many times
-;;       when moving between rows in the block comment
-;;       NOTE: Only function 'block-comment-centering--cursor-moved' should be called.
-;;             Might be a problem with the hooks?
-
-;; TODO: Look over how local variables are managed:
-;;      TODO: Look over initializations:
-;;            * Variables are default inited in insert-or-resume after the current
-;;              style has been detected and set. Should this even work?
-;;      TODO: Look over variable defenitions, should these happen in the define
-;;            -minor-mode? Now they are re-defined regularly in default-init-variables
-
-;; TODO: Adhere to GNU coding convention:
-;;       https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
-
-;; TODO: Use chatgtp to improve functions/comments and fix doc style
-
-;;;;;;;;;;;;;;;;;;;;;;;; Release 3 (Add features) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; TODO: Make enclose optional in 'block-comment--init-comment-style'
-;;       and make mode adhere to that
-
-;; TODO: Auto detect if row uses centering: If the amount of space on both
-;;       sides of the user text is equal, or off by 1, assume that centering
-;;       should be used
-
-;; TODO: Fix default style based on prog mode
-
-;; TODO: implement offset between top enclose body and bottom enclose
-
-;; TODO: Split mode into multiple files
-
-;; TODO: Add Toggling Between Different Lengths of block comments
-
-;; TODO: Implement automatic block comment width detection
-
-;; TODO: Add automatic row breaking when block comment is longer
-;;       than 80 characters
-
-;; TODO: Make block comment width indentation sensative, meaning that it does
-;;       not exceed a strict width limit (80 characters)
-
 ;;; Code:
 
 ;; Global variables shared between buffers
@@ -1294,10 +1244,10 @@
 
       ;; Only add elements depending on previous row if there is a previous row
       (when prev-indent-start-distance
-        (add-to-list 'distances-list (cons 'prev-indent-start-distance :prev-start)))
+        (push (cons 'prev-indent-start-distance :prev-start) distances-list))
 
       (when prev-indent-end-distance
-        (add-to-list 'distances-list (cons 'prev-indent-end-distance :prev-end)))
+        (push (cons 'prev-indent-end-distance :prev-end) distances-list))
 
       ;; Sort by distance
       (setq distances-list (sort distances-list
@@ -1945,7 +1895,6 @@
   (let (
         (match-signature nil)
         (has-body-beneath nil)
-        (start-column (current-column))
         )
 
     (setq match-signature (block-comment--is-enclose block-comment-enclose-prefix-top

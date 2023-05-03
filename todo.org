@@ -1,0 +1,49 @@
+;;;;;;;;;;;;;;;;;;;;;;;; Release 2 (stability & cleanup) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+** TODO Where possible, make all variables buffer local (defvar-local)
+
+** TODO Add docstring to all variables
+
+** TODO Investigate why function 'block-comment--is-comment' is called so many times
+   when moving between rows in the block comment
+   NOTE: Only function 'block-comment-centering--cursor-moved' should be called.
+         Might be a problem with the hooks?
+
+** TODO Look over how local variables are managed:
+*** TODO Look over initializations
+    Variables are default inited in insert-or-resume after the current
+    style has been detected and set. Should this even work?
+
+*** TODO Look over variable defenitions
+    should these happen in the define-minor-mode? Now they are
+    re-defined regularly in default-init-variables
+
+
+** TODO Adhere to GNU coding convention
+   https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
+
+** TODO Use chatgtp to improve functions/comments and fix doc style
+
+;;;;;;;;;;;;;;;;;;;;;;;; Release 3 (Add features) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+** TODO Make enclose optional in 'block-comment--init-comment-style'
+       and make mode adhere to that
+
+** TODO Auto detect if row uses centering
+       If the amount of space on both sides of the user text is equal,
+       or off by 1, assume that centering should be used
+
+** TODO Fix default style based on prog mode
+
+** TODO implement offset between top enclose body and bottom enclose
+
+** TODO Split mode into multiple files
+
+** TODO Add Toggling Between Different Lengths of block comments
+
+** TODO Implement automatic block comment width detection
+
+** TODO Add automatic row breaking when block comment is longer than 80 characters
+
+** TODO Make block comment width indentation sensative
+   Meaning that it does not exceed a strict width limit (80 characters)
