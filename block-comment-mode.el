@@ -13,39 +13,36 @@
 
 ;;; Code:
 
-;; Global variables shared between buffers
-;; TODO: Should these be global?
-;;       Many should probably be local since they are set by the mode hook
-(defvar block-comment-width 80)
-(defvar block-comment-prefix nil)
-(defvar block-comment-fill nil)
-(defvar block-comment-postfix nil)
+;; Buffer local variables
+(defvar-local block-comment-width 80)
+(defvar-local block-comment-prefix nil)
+(defvar-local block-comment-fill nil)
+(defvar-local block-comment-postfix nil)
 
-(defvar block-comment-enclose-prefix-top nil)
-(defvar block-comment-enclose-fill-top nil)
-(defvar block-comment-enclose-postfix-top nil)
+(defvar-local block-comment-enclose-prefix-top nil)
+(defvar-local block-comment-enclose-fill-top nil)
+(defvar-local block-comment-enclose-postfix-top nil)
 
-(defvar block-comment-enclose-prefix-bot nil)
-(defvar block-comment-enclose-fill-bot nil)
-(defvar block-comment-enclose-postfix-bot nil)
+(defvar-local block-comment-enclose-prefix-bot nil)
+(defvar-local block-comment-enclose-fill-bot nil)
+(defvar-local block-comment-enclose-postfix-bot nil)
 
 ;; Default values
-(defvar block-comment-prefix-default nil)
-(defvar block-comment-fill-default nil)
-(defvar block-comment-postfix-default nil)
+(defvar-local block-comment-prefix-default nil)
+(defvar-local block-comment-fill-default nil)
+(defvar-local block-comment-postfix-default nil)
 
-(defvar block-comment-enclose-prefix-top-default nil)
-(defvar block-comment-enclose-fill-top-default nil)
-(defvar block-comment-enclose-postfix-top-default nil)
+(defvar-local block-comment-enclose-prefix-top-default nil)
+(defvar-local block-comment-enclose-fill-top-default nil)
+(defvar-local block-comment-enclose-postfix-top-default nil)
 
-(defvar block-comment-enclose-prefix-bot-default nil)
-(defvar block-comment-enclose-fill-bot-default nil)
-(defvar block-comment-enclose-postfix-bot-default nil)
+(defvar-local block-comment-enclose-prefix-bot-default nil)
+(defvar-local block-comment-enclose-fill-bot-default nil)
+(defvar-local block-comment-enclose-postfix-bot-default nil)
 
 ;; Sets the target spacing between pre/postfix and user comment
-(defvar block-comment-edge-offset 2)
+(defvar-local block-comment-edge-offset 2)
 
-;; Buffer local variables
 (defvar-local block-comment-centering--start-pos nil)
 (defvar-local block-comment-centering--end-pos nil)
 (defvar-local block-comment-centering--order 1)
@@ -265,36 +262,35 @@
     (setq enclose-postfix-bot enclose-postfix)
     )
 
-  ;; TODO: Use setq-local?
-  (setq block-comment-width width)
+  (setq-local block-comment-width width)
 
-  (setq block-comment-prefix prefix)
-  (setq block-comment-fill fill)
-  (setq block-comment-postfix postfix)
+  (setq-local block-comment-prefix prefix)
+  (setq-local block-comment-fill fill)
+  (setq-local block-comment-postfix postfix)
 
-  (setq block-comment-enclose-prefix-top enclose-prefix)
-  (setq block-comment-enclose-fill-top enclose-fill)
-  (setq block-comment-enclose-postfix-top enclose-postfix)
+  (setq-local block-comment-enclose-prefix-top enclose-prefix)
+  (setq-local block-comment-enclose-fill-top enclose-fill)
+  (setq-local block-comment-enclose-postfix-top enclose-postfix)
 
-  (setq block-comment-enclose-prefix-bot enclose-prefix-bot)
-  (setq block-comment-enclose-fill-bot enclose-fill-bot)
-  (setq block-comment-enclose-postfix-bot enclose-postfix-bot)
+  (setq-local block-comment-enclose-prefix-bot enclose-prefix-bot)
+  (setq-local block-comment-enclose-fill-bot enclose-fill-bot)
+  (setq-local block-comment-enclose-postfix-bot enclose-postfix-bot)
 
   ;; Default parameters
-  (setq block-comment-prefix-default prefix)
-  (setq block-comment-fill-default fill)
-  (setq block-comment-postfix-default postfix)
+  (setq-local block-comment-prefix-default prefix)
+  (setq-local block-comment-fill-default fill)
+  (setq-local block-comment-postfix-default postfix)
 
-  (setq block-comment-enclose-prefix-top-default enclose-prefix)
-  (setq block-comment-enclose-fill-top-default enclose-fill)
-  (setq block-comment-enclose-postfix-top-default enclose-postfix)
+  (setq-local block-comment-enclose-prefix-top-default enclose-prefix)
+  (setq-local block-comment-enclose-fill-top-default enclose-fill)
+  (setq-local block-comment-enclose-postfix-top-default enclose-postfix)
 
-  (setq block-comment-enclose-prefix-bot-default enclose-prefix-bot)
-  (setq block-comment-enclose-fill-bot-default enclose-fill-bot)
-  (setq block-comment-enclose-postfix-bot-default enclose-postfix-bot)
+  (setq-local block-comment-enclose-prefix-bot-default enclose-prefix-bot)
+  (setq-local block-comment-enclose-fill-bot-default enclose-fill-bot)
+  (setq-local block-comment-enclose-postfix-bot-default enclose-postfix-bot)
 
   ;; Sets the target spacing between pre/postfix and user comment
-  (setq block-comment-edge-offset 2)
+  (setq-local block-comment-edge-offset 2)
   )
 
 (defun block-comment--shutdown ()
@@ -613,13 +609,13 @@
       (unless (and enclose-top-found
                    enclose-bot-found)
 
-        (setq block-comment-enclose-prefix-top "")
-        (setq block-comment-enclose-fill-top "")
-        (setq block-comment-enclose-postfix-top "")
+        (setq-local block-comment-enclose-prefix-top "")
+        (setq-local block-comment-enclose-fill-top "")
+        (setq-local block-comment-enclose-postfix-top "")
 
-        (setq block-comment-enclose-prefix-bot "")
-        (setq block-comment-enclose-fill-bot "")
-        (setq block-comment-enclose-postfix-bot "")
+        (setq-local block-comment-enclose-prefix-bot "")
+        (setq-local block-comment-enclose-fill-bot "")
+        (setq-local block-comment-enclose-postfix-bot "")
         )
       )
 
@@ -655,7 +651,6 @@
     ;; Only try to detect if the line is not blank
     (unless (block-comment--is-blank-line)
 
-      ;; (condition-case nil
       (save-excursion
         (end-of-line)
         (skip-syntax-backward " " (line-beginning-position))
@@ -681,12 +676,6 @@
             )
           )
         )
-
-      ;; (error
-      ;;  (setq encountered-error t)
-      ;;  (block-comment--error "block-comment--is-enclose: Encountered end-of-buffer" "BC: end-of-buffer")
-      ;;  )
-      ;; )
 
       ;; Find prefix
       (save-excursion
@@ -1407,7 +1396,7 @@
          (right (if (= block-comment-centering--order 0) min-step max-step))
          )
 
-      ;; When not centering, only add to the right
+    ;; When not centering, only add to the right
     (unless (block-comment--is-centering-row)
       (setq right (+ left right))
       (setq left 0)
@@ -1533,15 +1522,15 @@
             (string= block-comment-enclose-prefix-bot "")
             (string= block-comment-enclose-fill-bot "")
             (string= block-comment-enclose-postfix-bot ""))
-    (setq block-comment-prefix block-comment-prefix-default)
-    (setq block-comment-fill block-comment-fill-default)
-    (setq block-comment-postfix block-comment-postfix-default)
-    (setq block-comment-enclose-prefix-top block-comment-enclose-prefix-top-default)
-    (setq block-comment-enclose-fill-top block-comment-enclose-fill-top-default)
-    (setq block-comment-enclose-postfix-top block-comment-enclose-postfix-top-default)
-    (setq block-comment-enclose-prefix-bot block-comment-enclose-prefix-bot-default)
-    (setq block-comment-enclose-fill-bot block-comment-enclose-fill-bot-default)
-    (setq block-comment-enclose-postfix-bot block-comment-enclose-postfix-bot-default)
+    (setq-local block-comment-prefix block-comment-prefix-default)
+    (setq-local block-comment-fill block-comment-fill-default)
+    (setq-local block-comment-postfix block-comment-postfix-default)
+    (setq-local block-comment-enclose-prefix-top block-comment-enclose-prefix-top-default)
+    (setq-local block-comment-enclose-fill-top block-comment-enclose-fill-top-default)
+    (setq-local block-comment-enclose-postfix-top block-comment-enclose-postfix-top-default)
+    (setq-local block-comment-enclose-prefix-bot block-comment-enclose-prefix-bot-default)
+    (setq-local block-comment-enclose-fill-bot block-comment-enclose-fill-bot-default)
+    (setq-local block-comment-enclose-postfix-bot block-comment-enclose-postfix-bot-default)
     )
   )
 
