@@ -349,7 +349,7 @@
       (setq expected-string (buffer-string))
 
       ;; Init python block comment style
-      (block-comment--init-comment-style 80
+      (block-comment--set-comment-style 80
                                          "#"   " "   "#"
                                          "#"   "#"   "#")
 
@@ -379,7 +379,7 @@
       (setq expected-string (buffer-string))
 
       ;; Init python block comment style
-      (block-comment--init-comment-style 80
+      (block-comment--set-comment-style 80
                                          "#"   " "   "#"
                                          "#"   "#"   "#")
 

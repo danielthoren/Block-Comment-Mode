@@ -44,6 +44,8 @@
 ;;
 ;;;; Glossary
 ;;
+;; TODO: Use block comment row = row as a shorthand. line refer to any line
+;;
 ;; The following list contains defenitions of words used througout this module:
 ;; * "prefix" : The set of characters at the start of a block comment row.
 ;; * "postfix": The set of characters at the end of a block comment row.
@@ -91,6 +93,7 @@ Main goal of the keymap is to bind the following functions:
 
 (unless block-comment-keymap
   (setq block-comment-keymap (make-sparse-keymap))
+  ;; (define-key block-comment-keymap (kbd "C-M-k") 'block-comment-start) ;; TODO: use this?
   (define-key block-comment-keymap (kbd "C-g") 'block-comment-abort)
   (define-key block-comment-keymap (kbd "RET") 'block-comment-newline)
   (define-key block-comment-keymap (kbd "M-j") 'block-comment-newline-indent)
@@ -262,17 +265,14 @@ When centering is disabled, the user text is left untouched."
   (interactive)
   (if block-comment-centering--enabled
       (progn
-        (setq-local block-comment-centering--enabled nil) ;; If enabled , disable
-        (setq-local block-comment-centering--order 1) ;; Set order to right side (end of comment)
+        (setq-local block-comment-centering--enabled nil)
         (block-comment--message "BC: Centering disabled")
         )
     (progn
-      (setq-local block-comment-centering--enabled t)     ;; If disabled, enabled
-      (setq-local block-comment-centering--order 1) ;; Set order to right side (end of comment)
+      (setq-local block-comment-centering--enabled t)
+      (setq-local block-comment-centering--order 1)  ; Set order to right side (end of comment)
       (block-comment--align :center)
-      (when (block-comment--has-comment)
-        (block-comment--jump-to-last-char-in-body)
-        )
+      (block-comment--jump-to-starting-pos)
       (block-comment--message "BC: Centering enabled")
       )
     )
@@ -314,8 +314,8 @@ When this fails, a message is printed, telling the user that the mode has failed
         (inserted t)
         )
 
-    ;;Check if in block comment
     (if (block-comment--detect-style)
+        ;; If on block comment row, resume block comment
         (progn
 
           ;; Force hooks off
@@ -323,18 +323,14 @@ When this fails, a message is printed, telling the user that the mode has failed
           (block-comment--force-no-hooks)
 
           ;; Jump to starting position to prevent width alignment from using
-          ;; rightmost cursor position when  calculating target width
-          (block-comment--jump-back)
+          ;; rightmost cursor position when calculating target width
+          (block-comment--jump-to-starting-pos)
+
           ;; Align width of each row in the comment
           (block-comment--align-width)
-          ;; Jump to starting position again since width alignment will have
-          ;; changed the row width, thus moving the cursor
-          (block-comment--jump-back)
 
-          ;; init row boundries
+          (block-comment--jump-to-starting-pos)
           (block-comment--init-row-boundries)
-
-          ;; Enable hooks again
           (block-comment--allow-hooks)
           )
       ;; Else try to insert new comment if the current line is empty
@@ -390,26 +386,29 @@ Init variables used to keep track of line boundries:
     )
   )
 
-(defun block-comment--init-comment-style (width
-                                          prefix
-                                          fill
-                                          postfix
-                                          enclose-prefix
-                                          enclose-fill
-                                          enclose-postfix
-                                          &optional enclose-prefix-bot
-                                          enclose-fill-bot
-                                          enclose-postfix-bot)
-  """ Initializes variables of block-comment-mode                             """
-  """ This should be called during initialization of each mode where block-   """
-  """ comment-mode shall be used. Default behaviour is c/c++ comment style    """
-  """    -> enclose-prefix-bot :                                              """
-  """    -> enclose-fill-bot :                                                """
-  """    -> enclose-postfix-bot : If present, then a different set of         """
-  """                             variables are used for the bottom enclose   """
-  """                             than the top. If not, then the same         """
-  """                             settings are used for both top and bottom   """
+(defun block-comment--set-comment-style (width
+                                         prefix
+                                         fill
+                                         postfix
+                                         enclose-prefix
+                                         enclose-fill
+                                         enclose-postfix
+                                         &optional enclose-prefix-bot
+                                         enclose-fill-bot
+                                         enclose-postfix-bot)
+  ;; TODO: Update doc string then sticky style has been introduced
+  "Sets the comment style of the mode.
 
+This style will be used when inserting a block comment in the
+current buffer. By default, the style is variable, meaning that
+the most recently resumed style will be used on the next
+insertion. Thus, the style set here will only be applicable until
+a pre-existing comment has been resumed.
+
+The optional bottom enclose style parameters can be used to set a
+different style for the top/bottom encloses. If not set, bot the
+top and bottom encloses use the same parameters.
+"
   (unless enclose-prefix-bot
     (setq enclose-prefix-bot enclose-prefix)
     (setq enclose-fill-bot enclose-fill)
@@ -448,22 +447,35 @@ Init variables used to keep track of line boundries:
   )
 
 (defun block-comment--force-no-hooks ()
-  """  Enables the hook override, which overrides the add-hooks function      """
-  """  behaviour. Meant to be used during initialization.                     """
+  "Removes hooks and enables the hook override.
+
+The hook override ensures that no hooks are re-added when calling
+the function `block-comment--add-hooks'. Use the function
+`block-comment--allow-hooks' to reset the override.
+"
   (block-comment--remove-hooks)
   (setq block-comment--force-no-hooks t)
   )
 
 (defun block-comment--allow-hooks ()
-  """  Disables the hook override                                             """
+  "Reset the hook override.
+
+Sets the hook override to nil, enabling the function
+`block-comment--add-hooks' to add the hooks.
+"
   (setq block-comment--force-no-hooks nil)
   )
 
 (defun block-comment--remove-hooks ()
-  """  Adds necessasry hooks                                                  """
+  "Removes the hooks if they are active.
+
+If the following hooks are active, they are removed:
+`post-command-hook'
+`after-change-functions'
+"
   (when block-comment-has-hooks
     (setq post-command-hook
-          (delete #'block-comment-centering--cursor-moved post-command-hook))
+          (delete #'block-comment--cursor-moved post-command-hook))
     (setq after-change-functions
           (delete #'block-comment-centering--edit after-change-functions))
 
@@ -473,15 +485,22 @@ Init variables used to keep track of line boundries:
   )
 
 (defun block-comment--add-hooks ()
-  """   Adds necessary hooks so that block-comment-mode can react to          """
-  """   changes in the buffer. This behaviour can be overridden by the        """
-  """   function 'block-comment--force-no-hooks'. In which case, the hooks    """
-  """   will be forcibly disabled until the corresponding allow hooks         """
-  """   is called.                                                            """
+  "Adds the hooks if they, and the override, are inactive.
+
+Adds necessary hooks so that the mode can react to changes in the
+buffer. This behaviour can be overridden by the function
+`block-comment--force-no-hooks'. In which case, the hooks will be
+forcibly disabled until the corresponding
+`block-comment--allow-hooks' is called.
+
+The following hooks are added:
+`post-command-hook'
+`after-change-functions'
+"
   (when (and (not block-comment-has-hooks) (not block-comment--force-no-hooks))
-    ;; Keep track of the cursors position, if it leaves the block comment
-    ;; then abort the centering mode)
-    (add-to-list 'post-command-hook #'block-comment-centering--cursor-moved)
+    ;; Keep track of the cursors position.
+    ;; Disable the mode if it leaves the active region.
+    (add-to-list 'post-command-hook #'block-comment--cursor-moved)
 
     ;; Add a hook that is called everytime the buffer is modified
     (add-to-list 'after-change-functions #'block-comment-centering--edit)
@@ -491,7 +510,7 @@ Init variables used to keep track of line boundries:
     )
   )
 
-(defun block-comment--jump-back ()
+(defun block-comment--jump-to-starting-pos ()
   """  Jumps to starting position of current comment row based on current     """
   """  state. OBS: Assumes that current row holds a block comment             """
   """  if there is a user comment inside block: Jumps to end of comment       """
@@ -506,11 +525,16 @@ Init variables used to keep track of line boundries:
     )
   )
 
-(defun block-comment-centering--cursor-moved ()
-  """   This function is triggered by a hook every time point has moved.         """
-  """   Used to abort block-comment-mode if cursor is outside of row boundry.    """
-  """   If we are outside of row boundry, check if we are on a new block         """
-  """   comment row. If we are, resume on the new row.                           """
+(defun block-comment--cursor-moved ()
+  "Disable mode if `point' moves outside of active boundry.
+
+This function is triggered by `post-command-hook' every time
+point has moved. Used to detect when `point' leaves the current
+row boundry. If it does, and it is within the boundries of
+another comment row, reinitialize boundries and continue the
+mode. If the new position is not within a comment, disable mode.
+"
+
   (let* (
          (start (marker-position block-comment-body-start-boundry))
          (end (marker-position block-comment-body-end-boundry))
@@ -578,7 +602,7 @@ Init variables used to keep track of line boundries:
 
           (block-comment--insert-comment-line (- block-comment-width (current-column)))
           (block-comment--init-row-boundries)
-          (block-comment--jump-back)
+          (block-comment--jump-to-starting-pos)
 
           ;; return t
           t
@@ -629,7 +653,7 @@ Init variables used to keep track of line boundries:
     (block-comment--insert-comment-line target-width)
     (block-comment--init-row-boundries)
     (block-comment--add-hooks)
-    (block-comment--jump-back)
+    (block-comment--jump-to-starting-pos)
 
     ;; If there is text to the right of point, reinsert the deleted text
     (when remain-text
@@ -1054,10 +1078,29 @@ Init variables used to keep track of line boundries:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment-centering--edit (begin end length)
-  """   This function is triggered by a hook every time the user has         """
-  """   inserted/removed characters. It checks if the user removed or added  """
-  """   characters, then decides which side of the blockc omment should be   """
-  """   affected. The rest of the work is delegated                          """
+  "Adds or removes fill characters to keep the commend width constant.
+
+This function is triggered by a hook every time the user has
+inserted/removed characters. The BEGIN & END are used to see if
+characters have been added or removed.
+
+If characters are inserted: It removes fill characters on the
+appropriate side of the user text to keep the width of the
+comment constant. If centering is disabled, characters are only
+removed from the right side of the text. Otherwise, the removal
+alternates between the left/right side to keep the text
+centered. If there is no space left in the active region, the
+comment width is increased to make room fo the text.
+
+If characters are removed: It adds fill characters on the
+appropriate side of the user text to keep the width of the
+comment constant. If centering is disabled, characters are only
+added from the right side of the text. Otherwise, the addition
+alternates between the left/right side to keep the text
+centered. If the comment is extended, its width is decreased such
+that the text fits inside the active region. The width only decrease
+until the target width has been reached.
+"
   (let* (
          (step (- (- end begin) length))
          (min-step (/ step 2))

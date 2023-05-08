@@ -223,7 +223,7 @@
       (block-comment-start)
 
       (next-line 1)
-      (block-comment-centering--cursor-moved)
+      (block-comment--cursor-moved)
       (setq mode-state block-comment-mode)
 
       (block-comment-abort)
@@ -256,7 +256,7 @@ Outs<p>ide of block comment
       (block-comment-start)
 
       (next-line 1)
-      (block-comment-centering--cursor-moved)
+      (block-comment--cursor-moved)
       (setq mode-state block-comment-mode)
 
       (block-comment-abort)
@@ -331,7 +331,7 @@ Outs<p>ide of block comment
       (block-comment-start)
 
       (next-line -1)
-      (block-comment-centering--cursor-moved)
+      (block-comment--cursor-moved)
       (setq mode-state block-comment-mode)
 
       (block-comment-abort)
@@ -364,7 +364,7 @@ Outs<p>ide of block comment
       (block-comment-start)
 
       (next-line -1)
-      (block-comment-centering--cursor-moved)
+      (block-comment--cursor-moved)
       (setq mode-state block-comment-mode)
 
       (block-comment-abort)
