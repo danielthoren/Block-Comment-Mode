@@ -202,7 +202,7 @@ look like a block comment, the mode will not activate."
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-"""                         Functions bound to keys                          """
+"""                         Interactive functions                            """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;###autoload
@@ -227,6 +227,7 @@ look like a block comment, the mode will not activate."
   (block-comment-mode 0)
   )
 
+;;;###autoload
 (defun block-comment-newline ()
   "Inserts a new comment line.
 
@@ -298,7 +299,6 @@ alignments are available:
 """                          Startup/shutdown logic                          """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;###autoload
 (defun block-comment--insert-or-resume ()
   "This function creates or resumes a block comment on the current line.
 
@@ -348,7 +348,6 @@ When this fails, a message is printed, telling the user that the mode has failed
     )
   )
 
-;;;###autoload
 (defun block-comment--default-init-variables ()
   "Init all session variables to their default values.
 
@@ -365,7 +364,6 @@ the `block-comment-mode' is started."
   (setq-local block-comment--force-no-hooks nil)
   )
 
-;;;###autoload
 (defun block-comment--init-line-boundries ()
   "Init comment boundries for the current line.
 
@@ -511,11 +509,14 @@ The following hooks are added:
   )
 
 (defun block-comment--jump-to-starting-pos ()
-  """  Jumps to starting position of current comment line based on current     """
-  """  state. OBS: Assumes that current line holds a block comment             """
-  """  if there is a user comment inside block: Jumps to end of comment       """
-  """  else if centering is enabled:            Jump to center                """
-  """  else centering is enabled:               Jump to start                 """
+  "Jump to the starting position of the current comment line.
+
+This function assumes that the current line holds a block comment.
+If there is a user text inside the block, it will always jump to the end of
+the text. Otherwise, the behaviour will depend on wether centering mode is
+enabled or not. If it is, then it will jump to the center of the comment body,
+else to the beginning of the comment body.
+"
   (if (block-comment--has-comment)
       (block-comment--jump-to-last-char-in-body)
     (if block-comment-centering--enabled
@@ -541,15 +542,13 @@ mode. If the new position is not within a comment, disable mode.
          (cur (marker-position (point-marker)))
          )
 
-    (if (or (< cur start) (< end cur))  ;; If outside of line boundry
-        (if (block-comment--is-body t)  ;; If still in a block comment body
-            (progn ;; Set up variables for new line
+    (if (or (< cur start) (< end cur))  ; If outside of line boundry
+        (if (block-comment--is-body t)  ; If still in a block comment body
+            (progn                      ; Set up variables for new line
 
-              ;; TODO: remove permanently?
-;;              (block-comment--default-init-variables)
               (block-comment--init-line-boundries)
               )
-          (block-comment-mode 0)  ;; If not on block comment body, exit centering
+          (block-comment-mode 0)        ; If not on block comment body, exit centering
           )
       )
     )
@@ -2016,7 +2015,6 @@ until the target width has been reached.
   )
 
 (defun block-comment--get-line-prefix-postfix ()
-  (interactive)
   """  Gets the prefix & postfix based on the line type at point.             """
   """  Ret: The (prefix, postfix) of the line type at point as a cons-cell    """
   (let (
@@ -2232,7 +2230,6 @@ until the target width has been reached.
   )
 
 (defun block-comment--is-comment (prefix fill postfix &optional inside)
-  (interactive)
   """  Checks if the current line follows the format of a block comment body    """
   """  with the given prefix, fill and postfix.                                """
   """  Param 'prefix' : The prefix to look for                                 """
@@ -2290,7 +2287,6 @@ until the target width has been reached.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--jump-to-previous-text-column (&optional end)
-  (interactive)
   """  Jump to the same column as the text block in the previous block        """
   """  comment line. If param end is set to t, then jump to same column        """
   """  as the end of the text block in the previous line.                      """
@@ -2324,7 +2320,6 @@ until the target width has been reached.
   )
 
 (defun block-comment--jump-to-comment-start (&optional prefix)
-  (interactive)
   """  Jump to block comment start, the first char of the prefix               """
   """  Param 'prefix' : The prefix to look for                                 """
   """                   Default: block-comment-prefix                          """
@@ -2336,7 +2331,6 @@ until the target width has been reached.
   )
 
 (defun block-comment--jump-to-comment-end (&optional offset postfix)
-  (interactive)
   """  Jump to block comment end, the char directly after after the postfix.    """
   """  Param 'offset': Offset can be used to move the position from the         """
   """                  default position                                         """
@@ -2353,7 +2347,6 @@ until the target width has been reached.
   )
 
 (defun block-comment--jump-to-body-center ()
-  (interactive)
   """  Jumps to the center of the block comment body and returns the end      """
   """  final column position                                                  """
   (let (
@@ -2444,7 +2437,6 @@ until the target width has been reached.
   )
 
 (defun block-comment--jump-to-first-char-in-body (&optional offset)
-  (interactive)
   """   Jumps to the first char in the comment body text                       """
   """   Beginning means the first non-fill character in the body               """
   """   Param: 'offset': The offset can be used to change where to jump:       """
@@ -2482,7 +2474,6 @@ until the target width has been reached.
   )
 
 (defun block-comment--jump-to-last-char-in-body (&optional offset)
-  (interactive)
   """  jumps to end of comment in body at point End means the place right     """
   """  after the last non-fill character in the body                          """
   """  Param: 'offset': Jumps to last char in body + this offset. Default = 1 """
