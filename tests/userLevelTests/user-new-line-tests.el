@@ -229,6 +229,42 @@
       )
     )
 
+(it "RET New line: With user text to the right of point & Indented comment"
+    (let(
+         (start-string "
+   /****************************************************************************/
+   /*  This is user text. This text should move to next line                   */<p>
+   /****************************************************************************/
+")
+         (expected-string "
+   /****************************************************************************/
+   /*  This is user text.                                                      */
+   /*  <p>This text should move to next line                                      */
+   /****************************************************************************/
+")
+         (mode-state nil)
+         )
+
+      (insert start-string)
+      (jump-to-p nil t)
+
+      ;; Resume block comment
+      (block-comment-start)
+
+      (backward-word 7)
+      (execute-kbd-macro (kbd "RET"))
+      (setq mode-state block-comment-mode)
+
+      (block-comment-abort)
+
+      ;; Make sure mode did not turn off
+      (expect mode-state :to-equal t)
+
+      ;; Check for equality
+      (expect-buffer-equal expected-string "")
+      )
+    )
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 """        M-j newlines: keeping the indentation of previous row              """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

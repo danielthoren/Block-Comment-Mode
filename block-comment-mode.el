@@ -93,7 +93,6 @@ Main goal of the keymap is to bind the following functions:
 
 (unless block-comment-keymap
   (setq block-comment-keymap (make-sparse-keymap))
-  ;; (define-key block-comment-keymap (kbd "C-M-k") 'block-comment-start) ;; TODO: use this?
   (define-key block-comment-keymap (kbd "C-g") 'block-comment-abort)
   (define-key block-comment-keymap (kbd "RET") 'block-comment-newline)
   (define-key block-comment-keymap (kbd "M-j") 'block-comment-newline-indent)
@@ -241,7 +240,7 @@ line, just as it would with a normal text block."
 (defun block-comment-newline-indent ()
   "Inserts a new comment line and indents `point' to the same column as the previous line.
 
-The text to the right of point is moved down to the new line and indented, just as it
+The text to the right of `point' is moved down to the new line and indented, just as it
 would with a normal comment when using `M-j`."
   (interactive)
   (let (
@@ -311,13 +310,12 @@ that style.
 
 When this fails, a message is printed, telling the user that the mode has failed."
   (let (
-        (inserted t)
+        (inserted nil)
         )
 
     (if (block-comment--detect-style)
         ;; If on block comment line, resume block comment
         (progn
-
           ;; Force hooks off
           (block-comment--remove-hooks)
           (block-comment--force-no-hooks)
@@ -328,19 +326,21 @@ When this fails, a message is printed, telling the user that the mode has failed
 
           ;; Align width of each line in the comment
           (block-comment--align-width)
-
           (block-comment--jump-to-starting-pos)
-          (block-comment--init-line-boundries)
-          (block-comment--allow-hooks)
+
+          (setq inserted t)
           )
       ;; Else try to insert new comment if the current line is empty
       (if (block-comment--is-current-line-empty)
           (setq inserted (block-comment--insert-block-comment))
         ;; If not empty, print error message
-        (progn
-          (block-comment--message "Line is not empty!")
-          (setq inserted nil)
-          ))
+        (block-comment--message "Line is not empty!")
+        )
+      )
+
+    (when inserted
+      (block-comment--init-line-boundries)
+      (block-comment--allow-hooks)
       )
 
     ;; Return if insertion was successful or not
@@ -394,7 +394,7 @@ Init variables used to keep track of line boundries:
                                          &optional enclose-prefix-bot
                                          enclose-fill-bot
                                          enclose-postfix-bot)
-  ;; TODO: Update doc string then sticky style has been introduced
+  ;; TODO: Update doc string when sticky style has been introduced
   "Sets the comment style of the mode.
 
 This style will be used when inserting a block comment in the
@@ -530,7 +530,7 @@ else to the beginning of the comment body.
   "Disable mode if `point' moves outside of active boundry.
 
 This function is triggered by `post-command-hook' every time
-point has moved. Used to detect when `point' leaves the current
+`point' has moved. Used to detect when `point' leaves the current
 line boundry. If it does, and it is within the boundries of
 another comment line, reinitialize boundries and continue the
 mode. If the new position is not within a comment, disable mode.
@@ -559,9 +559,13 @@ mode. If the new position is not within a comment, disable mode.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--insert-block-comment ()
-  """ Inserts a new block comment and init centering """
+  "Inserts a new block comment and puts `point' at starting pos
 
-  ;; Reset style parameters if they are incomplete
+Inserts block comment on the following format:
+enclose top: <enclose-prefix> <enclose fill> <enclose-postfix>
+body       : <prefix> <`point'> <fill>         <postfix>
+enclose bot: <enclose-prefix> <enclose fill> <enclose-postfix>"
+
   (block-comment--reset-style-if-incomplete)
 
   (let (
@@ -598,26 +602,29 @@ mode. If the new position is not within a comment, disable mode.
 
           ;; Insert body
           (block-comment--indent-accoring-to-previous-comment-line)
-
           (block-comment--insert-comment-line (- block-comment-width (current-column)))
-          (block-comment--init-line-boundries)
+
+          ;; Put point at start pos
           (block-comment--jump-to-starting-pos)
 
-          ;; return t
-          t
+          t  ; return t
           )
       (progn
         (block-comment--message "Not enough room to insert comment!")
-        ;; return nil
-        nil
+        nil  ; return nil
         )
       ) ;; end if
     )
   )
 
 (defun block-comment--insert-newline (&optional target-width)
-  """ Inserts a new line and moves text to the right of point down"""
+  "Inserts a new comment line, moving text to the right of `point' down.
 
+Inserts a new comment line below the current line and moves the
+text to the right of `point' down to the new line. `point' is
+left at the body start position (beginning of comment line,
+before text). The comment line boundries are initialized.
+"
   (let (
         (remain-text-start (point-marker))
         (remain-text-end nil)
@@ -629,9 +636,8 @@ mode. If the new position is not within a comment, disable mode.
     ;; Get current block-comment width
     (unless target-width (setq target-width (block-comment--get-comment-width)))
 
-    (when (and (block-comment--is-body)
-               (block-comment--has-comment)
-               (not (block-comment--is-point-right-of-comment)))
+    ;; If there is text to the right of comment
+    (when (not (block-comment--is-point-right-of-comment))
       (block-comment--jump-to-last-char-in-body)
       (setq remain-text-end (point-marker))
 

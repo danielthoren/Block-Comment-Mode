@@ -1,8 +1,18 @@
-;;;;;;;;;;;;;;;;;;;;;;;; Release 2 (stability & cleanup) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+#+STARTUP: showeverything
+#+OPTIONS: ^:{}
 
-** TODO Where possible, make all variables buffer local (defvar-local)
+* ;;;;;;;;;;;;;;;;;;;;;;;; Release 1 (Initial features) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-** TODO Add docstring to all variables
+** DONE Implement unit tests for all user-level functions
+   CLOSED: [2023-05-11 Thu 08:39]
+** DONE Where possible, make all variables buffer local (defvar-local)
+   CLOSED: [2023-05-11 Thu 08:34]
+** DONE Add docstring to all variables
+   CLOSED: [2023-05-11 Thu 08:34]
+
+** STARTED Re-format doc strings to conform to GNU standard
+
+* ;;;;;;;;;;;;;;;;;;;;;;;; Release 2 (stability & cleanup) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ** TODO Investigate why function 'block-comment--is-comment' is called so many times
    when moving between rows in the block comment
@@ -24,7 +34,21 @@
 
 ** TODO Use chatgtp to improve functions/comments and fix doc style
 
-;;;;;;;;;;;;;;;;;;;;;;;; Release 3 (Add features) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+** TODO Split mode into multiple files
+
+** TODO Fix default style based on prog mode
+   Have a list containing cons cells with <prog-mode, style> that is
+   used to init the style each time a buffer is loaded. Users can
+   append to this list to customize the style.
+
+** TODO Look over startup/config of mode
+*** TODO How are other modes started/configured?
+    Can we use 'use-package' to init block comment mode?
+
+*** TODO Maybe put insert/resume key-binding in the keymap somehow?
+   Should the key-binding for starting/resuming a comment lie in the emacs config file?
+
+* ;;;;;;;;;;;;;;;;;;;;;;;; Release 3 (Add features) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ** TODO Make enclose optional in 'block-comment--init-comment-style'
        and make mode adhere to that
@@ -33,11 +57,7 @@
        If the amount of space on both sides of the user text is equal,
        or off by 1, assume that centering should be used
 
-** TODO Fix default style based on prog mode
-
 ** TODO implement offset between top enclose body and bottom enclose
-
-** TODO Split mode into multiple files
 
 ** TODO Add Toggling Between Different Lengths of block comments
 
