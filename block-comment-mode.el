@@ -369,8 +369,8 @@ the `block-comment-mode' is started."
 
 Init variables used to keep track of line boundries:
 `block-comment-body-start-boundry'
-`block-comment-body-end-boundry'"
-
+`block-comment-body-end-boundry'
+"
   ;; Set comment body start pos
   (save-excursion
     (block-comment--jump-to-body-start)
@@ -405,8 +405,8 @@ a pre-existing comment has been resumed.
 
 The optional bottom enclose style parameters can be used to set a
 different style for the top/bottom encloses. If not set, bot the
-top and bottom encloses use the same parameters.
-"
+top and bottom encloses use the same parameters."
+
   (unless enclose-prefix-bot
     (setq enclose-prefix-bot enclose-prefix)
     (setq enclose-fill-bot enclose-fill)
@@ -449,8 +449,8 @@ top and bottom encloses use the same parameters.
 
 The hook override ensures that no hooks are re-added when calling
 the function `block-comment--add-hooks'. Use the function
-`block-comment--allow-hooks' to reset the override.
-"
+`block-comment--allow-hooks' to reset the override."
+
   (block-comment--remove-hooks)
   (setq block-comment--force-no-hooks t)
   )
@@ -459,8 +459,8 @@ the function `block-comment--add-hooks'. Use the function
   "Reset the hook override.
 
 Sets the hook override to nil, enabling the function
-`block-comment--add-hooks' to add the hooks.
-"
+`block-comment--add-hooks' to add the hooks."
+
   (setq block-comment--force-no-hooks nil)
   )
 
@@ -515,8 +515,8 @@ This function assumes that the current line holds a block comment.
 If there is a user text inside the block, it will always jump to the end of
 the text. Otherwise, the behaviour will depend on wether centering mode is
 enabled or not. If it is, then it will jump to the center of the comment body,
-else to the beginning of the comment body.
-"
+else to the beginning of the comment body."
+
   (if (block-comment--has-comment)
       (block-comment--jump-to-last-char-in-body)
     (if block-comment-centering--enabled
@@ -533,8 +533,7 @@ This function is triggered by `post-command-hook' every time
 `point' has moved. Used to detect when `point' leaves the current
 line boundry. If it does, and it is within the boundries of
 another comment line, reinitialize boundries and continue the
-mode. If the new position is not within a comment, disable mode.
-"
+mode. If the new position is not within a comment, disable mode."
 
   (let* (
          (start (marker-position block-comment-body-start-boundry))
@@ -623,8 +622,7 @@ enclose bot: <enclose-prefix> <enclose fill> <enclose-postfix>"
 Inserts a new comment line below the current line and moves the
 text to the right of `point' down to the new line. `point' is
 left at the body start position (beginning of comment line,
-before text). The comment line boundries are initialized.
-"
+before text). The comment line boundries are initialized."
   (let (
         (remain-text-start (point-marker))
         (remain-text-end nil)
@@ -669,8 +667,7 @@ before text). The comment line boundries are initialized.
   )
 
 (defun block-comment--insert-comment-line (width)
-  """  Inserts a new block comment line at point with 'indent-level'          """
-  """  Param 'width' : The width of the comment line                          """
+"Inserts a new block comment line at `point' that is WIDTH wide."
   (let* (
          (fill-count (+ 1 (- width
                              (+ (string-width block-comment-prefix)
@@ -691,10 +688,14 @@ before text). The comment line boundries are initialized.
   )
 
 (defun block-comment--insert-enclose-line (prefix fill postfix)
-  """ Inserts a enclosing line at point                                      """
-  """ A enclosing line is a line inserted before and                         """
-  """ after the block comment body                                           """
+"Inserts an enclosing line at point.
 
+An enclosing line is a line inserted before and after the block comment body.
+
+PARAMETERS:
+    * PREFIX: A string representing the prefix of the enclosing line.
+    * FILL: A character representing the fill of the enclosing line.
+    * POSTFIX: A string representing the postfix of the enclosing line."
   (let* (
          (target-width (+ 1 (- block-comment-width (current-column))))
          (padding-length (- target-width
@@ -715,14 +716,31 @@ before text). The comment line boundries are initialized.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--detect-style ()
-  """  Attempts to detect the block comment style at point. This is done by     """
-  """  looking for prefix/postfix on the current line. If found, then looks      """
-  """  for enclose by moving up/down until the format no longer follows         """
-  """  the current line. Then check if there is a prefix/postfix with only       """
-  """  fill character between. If either enclose is not found, then set both    """
-  """  enclose to the empty string ''. When body enclose is found, then         """
-  """  return t, else nil                                                       """
-  """   -> Return: t if body style found, else nil                              """
+  ;; TODO: Look over and describe a valid block comment format (both here and in top comment)
+"Attempts to detect the block comment style at `point'.
+
+This is done by first checking if the current line matches the
+block comment format. If it does, then the prefix & postfix are
+detected and saved in the following buffer-local variables:
+* `block-comment-prefix'
+* `block-comment-postfix'
+
+Then the function checks for the enclosing lines by moving
+up/down until the line no longer matches the detected comment
+format. If both the top/bottom lines match the format of a
+enclosing line, their format is detected and saved. If one, or
+neither of the enclosing lines match the required format, both
+are set to the empty string. The following buffer-local variables
+are used to store the format:
+* `block-comment-enclose-prefix-top'
+* `block-comment-enclose-fill-top'
+* `block-comment-enclose-postfix-top'
+
+* `block-comment-enclose-prefix-bot'
+* `block-comment-enclose-fill-bot'
+* `block-comment-enclose-postfix-bot'
+
+Returns t if a block comment body style is found, nil otherwise."
   (let (
         (body-found nil)
         (enclose-top-found nil)
