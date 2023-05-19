@@ -475,7 +475,7 @@ If the following hooks are active, they are removed:
     (setq post-command-hook
           (delete #'block-comment--cursor-moved post-command-hook))
     (setq after-change-functions
-          (delete #'block-comment-centering--edit after-change-functions))
+          (delete #'block-comment--user-edit after-change-functions))
 
     ;; Keep track of hook status
     (setq block-comment-has-hooks nil)
@@ -501,7 +501,7 @@ The following hooks are added:
     (add-to-list 'post-command-hook #'block-comment--cursor-moved)
 
     ;; Add a hook that is called everytime the buffer is modified
-    (add-to-list 'after-change-functions #'block-comment-centering--edit)
+    (add-to-list 'after-change-functions #'block-comment--user-edit)
 
     ;; Keep track of hook status
     (setq block-comment-has-hooks t)
@@ -658,7 +658,7 @@ before text). The comment line boundries are initialized."
     (block-comment--add-hooks)
     (block-comment--jump-to-starting-pos)
 
-    ;; If there is text to the right of point, reinsert the deleted text
+    ;; If there is text to the right of `point', reinsert the deleted text
     (when remain-text
       (insert remain-text)
       (block-comment--jump-to-first-char-in-body)
@@ -688,11 +688,11 @@ before text). The comment line boundries are initialized."
   )
 
 (defun block-comment--insert-enclose-line (prefix fill postfix)
-"Inserts an enclosing line at point.
+"Inserts an enclosing line at `point'.
 
 An enclosing line is a line inserted before and after the block comment body.
 
-PARAMETERS:
+Parameters:
     * PREFIX: A string representing the prefix of the enclosing line.
     * FILL: A character representing the fill of the enclosing line.
     * POSTFIX: A string representing the postfix of the enclosing line."
@@ -823,17 +823,22 @@ Returns t if a block comment body style is found, nil otherwise."
 
 (defun block-comment--detect-body-style (body-prefix-symbol
                                          body-postfix-symbol)
-  """   Function auto detects what body style is used, meaning which prefix   """
-  """   and postfix that is used for the block comment body on the current    """
-  """   line. The global style is updated accordingly.                         """
-  """   Param 'body-prefix-symbol' : The symbol to which the new prefix shall """
-  """                                be written.                              """
-  """   Param 'body-postfix-symbol' : The symbol to which the new postfix     """
-  """                                 shall be written.                       """
-  """   -> Return: t if found, else nil                                       """
-  """   OBS: It is assumed that the current line contains a block comment,     """
-  """        behaviour is undefined if it does not!                           """
+"Auto-detects the body style used for block comments on the current line.
 
+The given symbols are updated with the new values if they are found.
+If they are not found, they are set to an empty string.
+
+Parameters:
+    BODY-PREFIX-SYMBOL : Symbol to which the new prefix will be written.
+    BODY-POSTFIX-SYMBOL: Symbol to which the new postfix will be written.
+
+Return: t if the style is found, else nil.
+
+Note: It is assumed that the current line contains a block comment;
+behavior is undefined if it does not!
+
+Note: Assumes that there is at least one space between the prefix/postfix
+and the body"
   (let* (
          (start-pos nil)
          (end-pos nil)
@@ -924,19 +929,24 @@ Returns t if a block comment body style is found, nil otherwise."
 (defun block-comment--detect-enclose-style (prefix-symbol
                                             fill-symbol
                                             postfix-symbol)
-  """  Function auto detects what enclose style is used, meaning which        """
-  """  prefix,fill and postfix that is used for the enclose on the current    """
-  """  line. The given symbols are updated with the new values,                """
-  """  if they are found. If they are not, the are set to ""                  """
-  """   Param 'prefix-symbol' : The symbol to which the new prefix            """
-  """                           shall be written.                             """
-  """   Param 'fill-symbol' : The symbol to which the new fill                """
-  """                         shall be written.                               """
-  """   Param 'postfix-symbol' : The symbol to which the new postfix          """
-  """                            shall be written.                            """
-  """   -> Return: t if enclose style found, else nil                         """
-  """  OBS: Point must be on the enclose line before calling this function!    """
+"Auto-detects the enclose style used for the enclosing line of a block comment.
 
+Detects style using helper functions, then checks if the current line adheres
+to the block comment enclose format, meaning that no non-fill characters may
+ exist between the prefix/postix:
+<Prefix><x * Fill><Postfix
+
+If the style is found and adheres to the format, the given symbols are updated
+with the detected values. If they are not found, they are set to an empty string.
+
+Parameters:
+    PREFIX-SYMBOL : Symbol to which the new prefix will be written.
+    FILL-SYMBOL   : Symbol to which the new fill will be written.
+    POSTFIX-SYMBOL: Symbol to which the new postfix will be written.
+
+Return: t if enclose style is found, else nil.
+
+Note: The `point' must be on the enclosing line before calling this function!"
   (let* (
          (enclose-prefix nil)
          (enclose-fill nil)
@@ -977,13 +987,18 @@ Returns t if a block comment body style is found, nil otherwise."
   )
 
 (defun block-comment--detect-enclose-fill ()
-  """  Detects the fill string of the enclose on the current line and          """
-  """  returns said fill.                                                     """
-  """   -> Return: The fill string                                            """
+  "Detects and returns the enclose fill of the current line.
 
+Finds and returns the char in the center of the text on the current row.
+Does not check if the format of the current row matches that of a
+enclose. If the current row contains no text, this function returns nil.
+
+Return: The fill string if found, else nil"
   (let (
         (block-start nil)
         (block-end nil)
+        (body-start nil)
+        (body-end nil)
         (block-middle nil)
         (enclose-fill nil)
         )
@@ -1003,7 +1018,6 @@ Returns t if a block comment body style is found, nil otherwise."
       ;; Jump to middle
       (setq block-middle (/ (- block-end block-start) 2))
       (forward-char block-middle)
-
       (setq enclose-fill (string (char-after)))
       )
 
@@ -1013,10 +1027,23 @@ Returns t if a block comment body style is found, nil otherwise."
   )
 
 (defun block-comment--detect-enclose-prefix (enclose-fill)
-  """  Detects the prefix string of the enclose on the current line and        """
-  """  returns said prefix.                                                   """
-  """   Param 'fill' : The enclose fill for the current line                   """
-  """   -> Return: The prefix string                                          """
+  "Detect and returns the enclose prefix of the current line.
+
+Detects the prefix by starting in the center of the text on the
+current line and skipping backwards until the first non-fill
+character is found. The prefix is then set to the string between
+this position and the first non-space character of the line.
+If the only characters found between the center and
+`beginning-of-line', then it is assumed that the prefix consists
+of a single fill character. If the line is empty, then the prefix
+is not found and the function returns nil.
+
+Parameters:
+    ENCLOSE-FILL: The fill string used in the enclosing line.
+
+Return: The prefix string if found, else nil.
+
+Note: The function assumes that the `point' is on the enclosing line before calling it."
   (let (
         (block-start nil)
         (block-end nil)
@@ -1048,17 +1075,29 @@ Returns t if a block comment body style is found, nil otherwise."
           )
         )
       )
-
     ;; Return the prefix
     enclose-prefix
     )
   )
 
 (defun block-comment--detect-enclose-postfix (enclose-fill)
-  """  Detects the postfix string of the enclose on the current line and       """
-  """  returns said postfix.                                                  """
-  """   Param 'fill' : The enclose fill for the current line                   """
-  """   -> Return: The postfix string                                         """
+"Detects and returns the enclose postfix of the current line.
+
+Detects the postfix by starting in the center of the text on the
+current line and skipping forward until the first non-fill
+character is found. The postfix is then set to the string between
+this position and the first non-space character of the line.
+If the only characters found between the center and
+`beginning-of-line', then it is assumed that the prefix consists
+of a single fill character. If the line is empty, then the prefix
+is not found and the function returns nil.
+
+Parameters:
+    ENCLOSE-FILL: The fill string used in the enclosing line.
+
+Return: The prefix string if found, else nil.
+
+Note: The function assumes that the `point' is on the enclosing line before calling it."
   (let (
         (block-start nil)
         (block-end nil)
@@ -1100,30 +1139,38 @@ Returns t if a block comment body style is found, nil otherwise."
 """                             Centering logic                              """
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun block-comment-centering--edit (begin end length)
+(defun block-comment--user-edit (begin end length)
   "Adds or removes fill characters to keep the commend width constant.
 
-This function is triggered by a hook every time the user has
-inserted/removed characters. The BEGIN & END are used to see if
-characters have been added or removed.
+This function is triggered by the hook `after-change-functions'
+every time the user has inserted/removed characters. The BEGIN &
+END are used to see if characters have been added or removed.
 
-If characters are inserted: It removes fill characters on the
-appropriate side of the user text to keep the width of the
-comment constant. If centering is disabled, characters are only
-removed from the right side of the text. Otherwise, the removal
-alternates between the left/right side to keep the text
-centered. If there is no space left in the active region, the
-comment width is increased to make room fo the text.
+;; Details
 
-If characters are removed: It adds fill characters on the
-appropriate side of the user text to keep the width of the
-comment constant. If centering is disabled, characters are only
-added from the right side of the text. Otherwise, the addition
-alternates between the left/right side to keep the text
-centered. If the comment is extended, its width is decreased such
-that the text fits inside the active region. The width only decrease
-until the target width has been reached.
-"
+If characters are inserted:
+It removes fill characters on the appropriate side of the user
+text to keep the width of the comment constant. If centering is
+disabled, characters are only removed from the right side of the
+text. Otherwise, the removal alternates between the left/right
+side to keep the text centered. If there is no space left in the
+active region, the comment width is increased to make room fo the
+text.
+
+If characters are removed:
+It adds fill characters on the appropriate side of the user text
+to keep the width of the comment constant. If centering is
+disabled, characters are only added from the right side of the
+text. Otherwise, the addition alternates between the left/right
+side to keep the text centered. If the comment is extended, its
+width is decreased such that the text fits inside the active
+region. The width only decrease until the target width has been
+reached.
+
+Parameters (Provided by the hook):
+    BEGIN : The start of the region where the change occured.
+    END   : The end of the region where the change occured.
+    LENGTH: The length in chars of the pre-change text replaced by that range."
   (let* (
          (step (- (- end begin) length))
          (min-step (/ step 2))
@@ -1134,7 +1181,7 @@ until the target width has been reached.
          )
 
     (if (< step 0)
-        (block-comment-centering--removed-chars block-comment-centering--order
+        (block-comment--user-removed-chars block-comment-centering--order
                                                 block-comment-centering--enabled)
       (progn
         ;; If centering is not enabled, only remove from right side
@@ -1143,7 +1190,7 @@ until the target width has been reached.
           (setq left 0)
           (setq right step)
           )
-        (block-comment-centering--inserted-chars left right))
+        (block-comment--user-inserted-chars left right))
       )
 
     ;; Alternate between putting larger step on left/right side
@@ -1159,14 +1206,24 @@ until the target width has been reached.
   (block-comment--align-point)
   )
 
-(defun block-comment-centering--removed-chars (curr-side centering)
-  """ Handles when the user removes characters. Inserts padding on right and  """
-  """ left side. When user comment is wider than target width,                """
-  """ no padding is inserted.                                                 """
-  """ curr-side : The side that should get the largest fill count:            """
-  """             0 -> left side (start of body)                              """
-  """             1 -> right side (end of body)                               """
-  """ centering : If t, the block comment is centered, else not               """
+(defun block-comment--user-removed-chars (curr-side centering)
+  "Handle width and centering when characters has been removed.
+
+If the comment width is below the target width (`block-comment-width'),
+then fill characters are inserted until the target width is restored.
+
+If centering is enabled, then the insertion of fill characters is
+alternated between the beginning and end of the body. If not, all
+fill characters are inserted at the end of the body.
+
+Parameters:
+    CURR-SIDE: The side that should receive the largest fill count:
+               0: Left side (start of body)
+               1: Right side (end of body)
+    CENTERING: A boolean value indicating whether the block comment is centered or not.
+
+Note: The function assumes that the `point' is inside the block
+      comment before calling it."
   (save-excursion
 
     (let* (
@@ -1200,10 +1257,24 @@ until the target width has been reached.
     )
   )
 
-(defun block-comment-centering--inserted-chars (left right)
-  """   Handles when user inserts characters. Removes padding on right and """
-  """   left side. If user comment grows larger than target width,         """
-  """   stops removing characters                                          """
+(defun block-comment--user-inserted-chars (left right)
+  "Handle width and centering when characters has been inserted.
+
+The function removes fill characters to keep the width of the
+comment constant. If centering is enabled, the removal is
+alternated between the beginning & end of the body. Else, all
+characters are removed from the end.
+
+If the user's comment grows larger than the target width, it
+stops removing characters. This makes the width of the comment
+increase to make room for the text.
+
+Parameters:
+  LEFT : The number of characters to remove from the left side.
+  RIGHT: The number of characters to remove from the right side.
+
+Note: This function assumes that the `point' is inside the block
+      comment before calling it."
   (let (
         (remain-space-left 0)
         (remain-space-right 0)
@@ -1270,28 +1341,37 @@ until the target width has been reached.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--align (next-alignment)
-  """  Checks which alignment the comment text currently has and moves the    """
-  """  text block to the next alignment. The following alignments are         """
-  """  available:                                                             """
-  """             :start -> Align text to the start of the comment            """
-  """             :prev-start -> Align text with the beginning of the         """
-  """                            previous line:s text block                    """
-  """             :prev-end -> Align text with the end of the previous        """
-  """                          line:s text block                               """
-  """             :end -> Align with the end of body                          """
+"Aligns the text on the current row to the NEXT-ALIGNMENT.
+
+Alignment is performed by adjusting the left-most position of the
+text within the comment. The position of `point' relative to the
+text is preserved during alignment.
+
+The following alignments are valid (accepted symbol on the left):
+  :start      : Aligns the text to the start of the comment.
+  :prev-start : Aligns the text with the beginning of the previous line's text block.
+  :prev-end   : Aligns the text with the end of the previous line's text block.
+  :end        : Aligns the text with the end of the comment body.
+  :center     : Aligns the text to the center of the comment body.
+
+Parameters:
+  NEXT-ALIGNMENT: The next alignment to move the comment text to.
+
+Note: This function assumes that the `point' is inside the block
+      comment before calling it."
   (block-comment--remove-hooks)
   (let (
-        (comment-text-start nil) ;; Start of comment text
-        (comment-text-end nil)   ;; End of comment text
+        (comment-text-start nil)        ; Start of comment text
+        (comment-text-end nil)          ; End of comment text
         (point-start-pos (point-marker))
 
-        (relative-text-position nil)   ;; Points relative position inside comment text from the left
+        (relative-text-position nil)    ; Points relative position inside comment text from the left
         (comment-text nil)
         (comment-text-width nil)
         (remain-fill nil)
         )
 
-    (when (block-comment--has-comment) ;; Align text if there is any
+    (when (block-comment--has-comment)  ; Align text if there is any
 
       (block-comment--jump-to-last-char-in-body)
       (setq comment-text-end (point-marker))
@@ -1327,7 +1407,7 @@ until the target width has been reached.
         ;; Make sure the relative text position does not put point
         ;; outside of the block comment. If it does, change the position
         (if (> relative-text-position 0)
-            (progn ;; Position positive (to the right
+            (progn ; Position positive (to the right
               (setq comment-text-width (string-width comment-text))
               (setq remain-fill (- (+ (block-comment--jump-to-last-char-in-body)
                                       comment-text-width)
@@ -1336,10 +1416,10 @@ until the target width has been reached.
               (when (> relative-text-position remain-fill)
                 (setq relative-text-position remain-fill))
               )
-          (progn ;; Position negative (to the left)
+          (progn ; Position negative (to the left)
             (setq remain-fill (- (block-comment--jump-to-first-char-in-body)
                                  block-comment-edge-offset))
-            ;; If there is not enough space left, reduce relative position
+            ;; When there is not enough space left, reduce relative position
             (when (> (abs relative-text-position) remain-fill)
               (setq relative-text-position remain-fill))
             )
