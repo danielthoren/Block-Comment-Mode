@@ -19,8 +19,14 @@
 
 ;;; Commentary:
 ;;
-;; Block comment mode is a utility to make inserting and editing block comment
-;; easier.
+;; Block comment mode is a utility to make inserting and editing block
+;; comments easier. A block comment is any text area that follows the
+;; valid block comment format seen below. The PreAmble & PostAmble
+;; rows are optional when resuming a block comment.
+;;
+;; <enclose-prefix>         <enclose-fill * X>         <enclose-postfix>  (PreAmble line)
+;; <prefix>                 <fill * X>                 <postfix>          (Comment line)
+;; <enclose-prefix>         <enclose-fill * X>         <enclose-postfix>  (PostAmble line)
 ;;
 ;; The following features are supported:
 ;; * It can insert a block comment according to the specified style
@@ -561,9 +567,9 @@ mode. If the new position is not within a comment, disable mode."
   "Inserts a new block comment and puts `point' at starting pos
 
 Inserts block comment on the following format:
-enclose top: <enclose-prefix> <enclose fill> <enclose-postfix>
-body       : <prefix> <`point'> <fill>         <postfix>
-enclose bot: <enclose-prefix> <enclose fill> <enclose-postfix>"
+enclose top: <enclose-prefix>    <enclose fill>    <enclose-postfix>
+body       : <prefix> <`point'>  <fill>            <postfix>
+enclose bot: <enclose-prefix>    <enclose fill>    <enclose-postfix>"
 
   (block-comment--reset-style-if-incomplete)
 
@@ -716,12 +722,12 @@ Parameters:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--detect-style ()
-  ;; TODO: Look over and describe a valid block comment format (both here and in top comment)
 "Attempts to detect the block comment style at `point'.
 
 This is done by first checking if the current line matches the
-block comment format. If it does, then the prefix & postfix are
-detected and saved in the following buffer-local variables:
+block comment format (see top comment).
+If it does, then the prefix & postfix are detected and saved in
+the following buffer-local variables:
 * `block-comment-prefix'
 * `block-comment-postfix'
 
@@ -1433,123 +1439,106 @@ Note: This function assumes that the `point' is inside the block
   (block-comment--add-hooks)
   )
 
-(defun block-comment--align-get-next ()
-  """  Checks the current alignment of the comment body text and retuns the    """
-  """  next alignment, taking positioning into consideration. The following    """
-  """  alignments are available:                                               """
-  """               :start -> Align text to the start of the comment           """
-  """               :prev-start -> Align text with the beginning of the        """
-  """                              previous line:s text block                   """
-  """               :prev-end -> Align text with the end of the previous       """
-  """                            line:s text block                              """
-  """               :end -> Align with the end of body                         """
-  """  -> Return: One of the symbols defined above                             """
-
-  ;; Variables that needs to be dynamically bound since they are
-  ;; inserted into a list then sorted using a lambda
+  ;; Variables used by function 'block-comment--align-get-next' that
+  ;; needs to be dynamically bound since they are inserted into a list
+  ;; then sorted using a lambda. Lexical scoping makes this necessary
+  ;; when passing symbols into the lambda.
   (defvar-local body-start-distance nil
     "The distance from the start of the block comment body and the start of the user text")
-  (defvar-local prev-indent-start-distance nil
+  (defvar-local prev-text-start-distance nil
     "The distance from the start of the user text on the previous line, and the current line")
-  (defvar-local prev-indent-end-distance nil
+  (defvar-local prev-text-end-distance nil
     "The distance from the end of the user text on the previous line, and the current line")
   (defvar-local body-end-distance nil
     "The distance from the end of the block comment body and the start of the user text")
   (defvar-local body-center-distance nil
     "The distance from the center of the block comment body and the start of the user text")
 
+(defun block-comment--align-get-next ()
+  "Gets the next alignment on the current comment row.
+
+The following alignments are available:
+* `start'     : Align text to the start of the comment
+* `prev-start': Align text with the beginning of the previous line's text block
+* `prev-end'  : Align text with the end of the previous line's text block
+* `end'       : Align with the end of body
+
+Return: One of the symbols defined above"
+
   (let (
-        (comment-text-start nil) ; Start of comment text
-        (comment-text-end nil)   ; End of comment text
+        (text-start nil)         ; Start of comment text
+        (text-end nil)           ; End of comment text
         (body-start nil)         ; The body start position
-        (prev-indent-start nil)  ; The first char position of the text in the previous block comment
+        (prev-text-start nil)    ; Start of the comment text on the previous line
         (body-center nil)        ; Body center position
-        (prev-indent-end nil)    ; The last char position of the text in the previous block comment
+        (prev-text-end nil)      ; End of the comment text on the previous line
         (body-end nil)           ; Body end position
         (text-center nil)        ; The center of the comment text
         )
 
-    ;; Find text boundry if there is text
-    (if (block-comment--has-comment)
-        (progn
-          (save-excursion
-            (block-comment--jump-to-last-char-in-body)
-            (setq comment-text-end (current-column))
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;; Set positions ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-            (block-comment--jump-to-first-char-in-body)
-            (setq comment-text-start (current-column))
-            ))
-      ;; If no text exist, use current position for both
-      (progn
-        (setq comment-text-start (current-column))
-        (setq comment-text-end (current-column))
-        )
+    ;; Set current line text boundries
+    (let ((boundry (block-comment--get-text-boundry)))
+      (setq text-start (if (car boundry) (car boundry) (current-column)))
+      (setq text-end (if (cdr boundry) (cdr boundry) (current-column)))
       )
 
-    ;; Find internal indent of previous line
+    ;; Set prev line text boundries
     (save-excursion
       (forward-line -1)
-      ;; Leave values at 0 if the previous line does not contain a block comment
-      ;; body, or if the body is emtpy
-      (when (and (block-comment--is-body)
-                 (block-comment--has-comment))
+      (let ((prev-boundry (block-comment--get-text-boundry)))
 
-        (block-comment--jump-to-first-char-in-body)
-        (setq prev-indent-start (current-column))
+        (when (setq prev-text-start (car (block-comment--get-text-boundry)))
+          (setq-local prev-text-start-distance (- prev-text-start text-start)))
 
-        (block-comment--jump-to-last-char-in-body)
-        (setq prev-indent-end (current-column))
+        (when (setq prev-text-end (cdr (block-comment--get-text-boundry)))
+          (setq-local prev-text-end-distance (- prev-text-end text-start)))
         )
       )
 
-    ;; Find body start/center/end positions
-    (save-excursion
-      (setq body-start
-            (block-comment--get-column-from-marker
-             block-comment-body-start-boundry))
+    ;; Set body start/center/end positions
+    (setq body-start
+          (block-comment--get-column-from-marker
+           block-comment-body-start-boundry))
 
+    (setq body-end
+          (block-comment--get-column-from-marker
+           block-comment-body-end-boundry))
+
+    (save-excursion
       (block-comment--jump-to-body-center)
       (setq body-center (current-column))
-
-      (setq body-end
-            (block-comment--get-column-from-marker
-             block-comment-body-end-boundry))
       )
 
-    (setq-local body-start-distance (- body-start comment-text-start))
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;; Set distances ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-    (when prev-indent-start
-      (setq-local prev-indent-start-distance (- prev-indent-start comment-text-start)))
+    (setq-local body-start-distance (- body-start text-start))
+    (setq-local body-end-distance (- body-end text-start))
 
-    (when prev-indent-end
-      (setq-local prev-indent-end-distance (- prev-indent-end comment-text-start)))
-
-    (setq-local body-end-distance (- body-end comment-text-start))
-
-    ;; The offset from 'comment-text-start' to the center of the comment text
-    (setq text-center (if (= comment-text-start comment-text-end)
+    ;; The offset from 'text-start' to the center of the comment text
+    (setq text-center (if (= text-start text-end)
                           0
-                        (ceiling (- comment-text-end comment-text-start) 2)))
+                        (ceiling (- text-end text-start) 2)))
 
     ;; Distance from text center to body center
     (setq-local body-center-distance (- body-center
-                                        (+ comment-text-start
+                                        (+ text-start
                                            text-center)))
+
+    ;;;;;;;;;;;;;;;;;;;;; Calculate next alignment ;;;;;;;;;;;;;;;;;;;;;
 
     (let* (
            (distances-list (list (cons 'body-start-distance :start)
                                  (cons 'body-center-distance :center)
                                  (cons 'body-end-distance :end)))
-
            (curr-elem 0)
            )
 
       ;; Only add elements depending on previous line if there is a previous comment line
-      (when prev-indent-start-distance
-        (push (cons 'prev-indent-start-distance :prev-start) distances-list))
-
-      (when prev-indent-end-distance
-        (push (cons 'prev-indent-end-distance :prev-end) distances-list))
+      (when (and prev-text-start-distance prev-text-end-distance)
+        (push (cons 'prev-text-start-distance :prev-start) distances-list)
+        (push (cons 'prev-text-end-distance :prev-end) distances-list))
 
       ;; Sort by distance
       (setq distances-list (sort distances-list
@@ -1560,15 +1549,15 @@ Note: This function assumes that the `point' is inside the block
       ;; inside of the body is found, or until the end of the list.
       (while (and (< curr-elem (- (length distances-list) 1))
                   (or (>= 0 (symbol-value (car (nth curr-elem distances-list))))
-                      (< (- body-end (+ comment-text-end (symbol-value (car (nth curr-elem distances-list))))) 0 )
+                      (< (- body-end (+ text-end (symbol-value (car (nth curr-elem distances-list))))) 0 )
                       )
                   )
         (setq curr-elem (+ curr-elem 1))
         )
 
-      ;; When text already is end-aligned, wrap around to start aligned
+      ;; When text is end-aligned, wrap around to start aligned
       (when (and (= curr-elem (- (length distances-list) 1))
-                 (>= comment-text-end body-end))
+                 (>= text-end body-end))
         (setq curr-elem 0)
         )
 
@@ -2156,7 +2145,6 @@ Note: This function assumes that the `point' is inside the block
   )
 
 (defun block-comment--get-column-from-marker (marker)
-
   (if (markerp marker)
     (save-excursion
       (goto-char marker)
@@ -2165,7 +2153,30 @@ Note: This function assumes that the `point' is inside the block
     (error
      "block-comment--get-column-from-marker: Invalid argument, must be marker!")
     )
- )
+  )
+
+(defun block-comment--get-text-boundry ()
+  "Gets the start & end position (column) of the text on the current line.
+
+Return: Cons cell containing the start & end column positions"
+  (let (
+        (text-start nil)
+        (text-end nil)
+        )
+    (if (and (block-comment--is-body)
+             (block-comment--has-comment))
+        (progn
+          (save-excursion
+            (block-comment--jump-to-last-char-in-body)
+            (setq text-end (current-column))
+
+            (block-comment--jump-to-first-char-in-body)
+            (setq text-start (current-column))))
+      )
+
+    (cons text-start text-end)
+    )
+  )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 """                              Is x functions                               """
