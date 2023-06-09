@@ -1354,11 +1354,11 @@ text within the comment. The position of `point' relative to the
 text is preserved during alignment.
 
 The following alignments are valid (accepted symbol on the left):
-  :start      : Aligns the text to the start of the comment.
-  :prev-start : Aligns the text with the beginning of the previous line's text block.
-  :prev-end   : Aligns the text with the end of the previous line's text block.
-  :end        : Aligns the text with the end of the comment body.
-  :center     : Aligns the text to the center of the comment body.
+  `start'      : Aligns the text to the start of the comment.
+  `prev-start' : Aligns the text with the beginning of the previous line's text block.
+  `prev-end'   : Aligns the text with the end of the previous line's text block.
+  `end'        : Aligns the text with the end of the comment body.
+  `center'     : Aligns the text to the center of the comment body.
 
 Parameters:
   NEXT-ALIGNMENT: The next alignment to move the comment text to.
@@ -1458,10 +1458,11 @@ Note: This function assumes that the `point' is inside the block
   "Gets the next alignment on the current comment row.
 
 The following alignments are available:
-* `start'     : Align text to the start of the comment
-* `prev-start': Align text with the beginning of the previous line's text block
-* `prev-end'  : Align text with the end of the previous line's text block
-* `end'       : Align with the end of body
+  `start'      : Aligns the text to the start of the comment.
+  `prev-start' : Aligns the text with the beginning of the previous line's text block.
+  `prev-end'   : Aligns the text with the end of the previous line's text block.
+  `end'        : Aligns the text with the end of the comment body.
+  `center'     : Aligns the text to the center of the comment body.
 
 Return: One of the symbols defined above"
 
@@ -1577,7 +1578,11 @@ Return: One of the symbols defined above"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--align-width ()
-  """  Aligns the width of all comment lines in accordance with the widest comment line          """
+"Adjusts the width of each comment line to match the widest comment line.
+
+The function ensures that the width is not less than the target
+width minus the indentation. If it is, the target width is
+adjusted accordingly."
   (let* (
          (indentation (block-comment--get-indent-level))
          (rightmost-text-column (block-comment--get-rightmost-comment-text-column))
@@ -1595,7 +1600,7 @@ Return: One of the symbols defined above"
       (setq target-width (- block-comment-width indentation))
       )
 
-    ;; Disable hooks to disable centering when adjusting width
+    ;; Remove hooks to disable centering when adjusting width
     (block-comment--remove-hooks)
 
     (save-excursion
@@ -1609,9 +1614,16 @@ Return: One of the symbols defined above"
   )
 
 (defun block-comment--adjust-lines-above-to-target-width (target-width)
-  """  Aligns all block comment lines, starting from the current line and       """
-  """  upward to the given target width                                       """
-  """  Param 'target-width': The width to align to                            """
+"Aligns width of all block comment lines from the current row upwards.
+
+Aligns width of all block comment lines from the current row
+upwards to the given TARGET-WIDTH. The function continues the
+alignment process until it reaches the top of the buffer or
+encounters a line that is not part of the comment body or
+enclose.
+
+Parameters:
+    TARGET-WIDTH: The width to align the rows to."
   (let (
         (curr-width 0)
         (width-diff 0)
