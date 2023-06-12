@@ -9,10 +9,17 @@
    CLOSED: [2023-05-11 Thu 08:34]
 ** DONE Add docstring to all variables
    CLOSED: [2023-05-11 Thu 08:34]
+** DONE Put insert/resume key-binding in the keymap
+   CLOSED: [2023-06-12 Mon 07:42]
+** DONE Make block comment width indentation sensative
+   CLOSED: [2023-06-12 Mon 07:45]
+   Meaning that it does not exceed a strict width limit (80 characters)
 
 ** STARTED Re-format doc strings to conform to GNU standard
 
-* ;;;;;;;;;;;;;;;;;;;;;;;; Release 2 (stability & cleanup) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+* ;;;;;;;;;;;;;;;;;;;;;;;; Release 2 (cleanup) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+** TODO Split mode into multiple files
 
 ** TODO Investigate why function 'block-comment--is-comment' is called so many times
    when moving between rows in the block comment
@@ -28,13 +35,8 @@
     should these happen in the define-minor-mode? Now they are
     re-defined regularly in default-init-variables
 
-
 ** TODO Adhere to GNU coding convention
    https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
-
-** TODO Use chatgtp to improve functions/comments and fix doc style
-
-** TODO Split mode into multiple files
 
 ** TODO Fix default style based on prog mode
    Have a list containing cons cells with <prog-mode, style> that is
@@ -45,10 +47,15 @@
 *** TODO How are other modes started/configured?
     Can we use 'use-package' to init block comment mode?
 
-*** TODO Maybe put insert/resume key-binding in the keymap somehow?
-   Should the key-binding for starting/resuming a comment lie in the emacs config file?
+** TODO Make function called by 'block-comment--jump-to-starting-pos' return with same format
 
-* ;;;;;;;;;;;;;;;;;;;;;;;; Release 3 (Add features) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+* ;;;;;;;;;;;;;;;;;;;;;;;; Release 3 (Add nice to have features) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+** TODO Implement sticky comment style
+   When resuming a existing block comment, the style is over written,
+   leading to the next inserted block comment having that style. Add
+   an option to keep the configured style even after resuming a
+   comment of a different style.
 
 ** TODO Make enclose optional in 'block-comment--init-comment-style'
        and make mode adhere to that
@@ -59,11 +66,10 @@
 
 ** TODO implement offset between top enclose body and bottom enclose
 
+* ;;;;;;;;;;;;;;;;;;;;;;;; Release 4 (Add variable width block comments) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ** TODO Add Toggling Between Different Lengths of block comments
 
 ** TODO Implement automatic block comment width detection
 
 ** TODO Add automatic row breaking when block comment is longer than 80 characters
-
-** TODO Make block comment width indentation sensative
-   Meaning that it does not exceed a strict width limit (80 characters)
