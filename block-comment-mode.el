@@ -1761,11 +1761,16 @@ Parameters:
   )
 
 (defun block-comment--align-body-width-decrease (decrease)
-  """  Decrease the block comment body width with 'decrease' amount           """
-  """  Param 'decrease': How much the width should change, increases if      """
-  """                    positive, decreases if negative                      """
-  """  Param 'fill'    : The char to fill with                                """
+"Decreases the width of the block comment by DECREASE number of characters.
 
+Function decreases the current block comment line with DECREASE
+number of characters. It takes centering mode into
+consideration, removing on both sides of the user text if
+enabled.
+
+Parameters:
+  DECREASE: The amount by which the width should decrease. Positive value.
+  FILL    : The character to fill the added width with."
   (let* (
          (step (abs decrease))
          (min-step (/ step 2))
@@ -1805,13 +1810,20 @@ Parameters:
   )
 
 (defun block-comment--align-enclose-width (width-diff fill)
-  """  Changes the block comment width  'width-diff' characters, inserting     """
-  """  if the diff is positive and removing if it is positive.                 """
-  """  Param 'width-diff': How much the width should change, increases if      """
-  """                      positive, decreases if negative                     """
-  """  Param 'fill'      : The char to fill with                               """
-  """  OBS: This function assumes that the block comment body fits inside the  """
-  """  new boundry!                                                            """
+"Adjusts the width of the block comment enclosure by WIDTH-DIFF characters.
+
+This function modifies the width of the block comment enclosure
+by inserting characters if WIDTH-DIFF is positive and removing
+characters if it is negative.
+
+Parameters:
+  WIDTH-DIFF: The change in width, a positive value increases the width,
+              a negative value decreases it.
+  FILL      : Fill character used by the enclose
+
+Notes:
+  * This function assumes that the block comment body fits within the new
+     boundary after the width adjustment."
   (let* (
          (step (abs width-diff))
          (min-step (/ step 2))
@@ -1822,24 +1834,19 @@ Parameters:
     ;; If width should increase
     (when (> width-diff 0)
       (insert (make-string step
-                           (string-to-char fill)
-                           )
-              )
-      ) ;; End when width-diff positive
+                           (string-to-char fill))))
 
     (when (< width-diff 0)
       (delete-char min-step)
-      (delete-char (- max-step))
-      )
-    ) ;; End when width-diff negative
+      (delete-char (- max-step)))
+    )
   )
 
-;; TODO: Add user tests for this function
-;; NOTE: Changed recently, but not tested. Reset using git if new
-;; version does not work
 (defun block-comment--align-point ()
-  """  If point is outside of the comment bounds after width alignment, put  """
-  """  point inside of the bounds                                            """
+  " Moves `point' inside block comment boundry.
+
+If `point' is outside of the comment bounds after width
+alignment, puts `point' inside of the bounds."
   (let (
         (curr-pos (point-marker))
         )
@@ -1856,7 +1863,7 @@ Parameters:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--reset-style-if-incomplete ()
-  """  Resets style to default if any of the style parameters is missing      """
+  "Resets style to default if any of the style parameters is missing."
 
   (when (or (string= block-comment-prefix "")
             (not block-comment-prefix)
@@ -1894,9 +1901,14 @@ Parameters:
   )
 
 (defun block-comment--indent-accoring-to-previous-comment-line ()
-  """  Indent current line in accordance with the block comment line on           """
-  """  the previous line. Auto detects if previous line is body or enclose-top  """
-  """  -> return: Current indentation level                                     """
+"Indents the current line based on the previous comment line.
+
+This function automatically detects whether the previous line is
+a body or an enclosure-top line of the block comment. It then
+indents the current line accordingly, using the same indentation
+level as the previous line.
+
+-> Returns: The current indentation level."
   (block-comment--move-line -1)
 
   (let* (
@@ -1908,9 +1920,7 @@ Parameters:
 
     (beginning-of-line)
     (insert (make-string indent-level
-                         (string-to-char " ")
-                         )
-            )
+                         (string-to-char " ")))
 
     ;; Return indent level
     indent-level
@@ -1918,10 +1928,13 @@ Parameters:
   )
 
 (defun block-comment--get-indent-level (&optional prefix)
-  """  Get the indentation level (int) of the current comment line                       """
-  """  Param 'prefix' : The prefix to look for                                  """
-  """                   Default: block-comment-prefix                           """
-  """           return: Current indentation level                               """
+"Returns the indentation level (column) of the current comment line.
+
+Parameters:
+  PREFIX: The prefix to look for.
+          Default: `block-comment-prefix'.
+
+-> Returns: The current indentation level."
   (unless prefix (setq prefix block-comment-prefix))
 
   (save-excursion
@@ -1931,13 +1944,19 @@ Parameters:
 
 
 (defun block-comment--is-centering-line (&optional tolerance)
-  """  Checks if the current block comment line is centering or non-centering.    """
-  """  If the left margin is larger than (edge-offset + 1) and the diff          """
-  """  between the margins is less than tolerance,                               """
-  """  then is centering                                                         """
-  """  Param 'tolerance': How much off center the text is allowed to be          """
-  """                     -> Default = 2                                         """
-  """  -> Return: t if text is centered, else nil                                """
+"Checks whether the current block comment line is centering or non-centering.
+
+This function determines if the current line of the block comment
+is centering based on the margins. If the left margin is larger
+than (edge-offset + 1) and the difference between the left/right
+margins is less than the specified TOLERANCE, the line is
+considered centering.
+
+Parameters:
+  TOLERANCE: Determines how much off-center the text is allowed to be.
+             Default: 2.
+
+-> Returns: t if the text is centered, nil otherwise."
   (unless tolerance (setq tolerance 2))
 
   (save-excursion
@@ -1948,22 +1967,21 @@ Parameters:
       ;; If diff between begin/end width is smaller than x, then assume
       ;; that we are in centering mode
       (and (> begin-width (+ block-comment-edge-offset 1))
-           (> tolerance
-              (abs (- begin-width end-width)))
-           )
+           (> tolerance (abs (- begin-width end-width))))
       )
     )
   )
 
 (defun block-comment--is-point-right-of-comment ()
-  """ Returns t if current point if right of block comment text               """
+  "Checks if `point' is to the right of the user text.
+
+-> Return: t if `point' is to the right of the user text, else nil."
   (save-excursion
     (let (
           (current-pos (current-column))
           (text-end (progn
                       (block-comment--jump-to-last-char-in-body)
-                      (current-column)
-                      ))
+                      (current-column)))
           )
       (>= current-pos text-end)
       )
@@ -1971,10 +1989,10 @@ Parameters:
   )
 
 (defun block-comment--move-line (count)
-  """  Moves point 'count' lines up/down, keeping the column position.         """
-  """  Param 'count':                                                          """
-  """                 +x -> move point x lines down                            """
-  """                 -x -> move point x lines up                              """
+"Moves point COUNT lines up/down, keeping the column position
+
+Parameters:
+  COUNT: The number of lines to move point."
   (let (
         (column (current-column))
         )
@@ -1984,8 +2002,9 @@ Parameters:
   )
 
 (defun block-comment--has-comment ()
-  """ Checks if the block-comment-body at point contains a user comment """
-  """ If it does, then return t, else nil                               """
+  "Checks if the block-comment-body at point contains a user comment.
+
+-> Return: t if it does, else nil."
   (let (
         (body-end nil)
         )
@@ -1993,10 +2012,9 @@ Parameters:
       (setq body-end (block-comment--jump-to-body-end))
       (block-comment--jump-to-body-start)
       (skip-syntax-forward " " body-end)
+
       (not (equal (point-marker)
-                  body-end
-                  )
-           )
+                  body-end))
       )
     )
   )
@@ -2006,15 +2024,16 @@ Parameters:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--get-line-count-in-buffer ()
-  """  Gets the number of lines in the current buffer                        """
-  """  -> Return: The number of lines in the current buffer                  """
+  "Get the number of lines in the current buffer
+
+-> Return: The number of lines in the current buffer"
   (count-lines (point-min) (point-max))
   )
 
 (defun block-comment--get-widest-comment-text ()
-  """  Finds the width of the widest block comment text above point and        """
-  """  returns said width. The block comment text is the actual user text      """
-  """  inside the block comment body.                                          """
+  "Get the widest comment text from the current block comment.
+
+-> Returns: The width of the widest comment text."
   (let (
         (widest-width 0)
         (curr-width 0)
@@ -2031,8 +2050,7 @@ Parameters:
 
         (setq curr-width (block-comment--get-comment-text-width))
         (when (> curr-width widest-width)
-          (setq widest-width curr-width)
-          )
+          (setq widest-width curr-width))
 
         ;; Check if at top after performing logic in order to process the top
         ;; line before breaking the while loop
@@ -2049,8 +2067,9 @@ Parameters:
   )
 
 (defun block-comment--get-rightmost-comment-text-column ()
-  """  Gets the column of the non-fill character farthest to the right in  """
-  """  the current block comment.                                          """
+  "Get the column of the rightmost user text char in the current block comment.
+
+-> Return: The column of the rightmost user text position."
   (let (
         (rightmost-column 0)
         (curr-column 0)
@@ -2068,8 +2087,7 @@ Parameters:
         (block-comment--jump-to-last-char-in-body 0)
         (setq curr-column (current-column))
         (when (> curr-column rightmost-column)
-          (setq rightmost-column curr-column)
-          )
+          (setq rightmost-column curr-column))
 
         ;; Check if at top after performing logic in order to process the top
         ;; line before breaking the while loop
