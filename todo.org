@@ -14,8 +14,8 @@
 ** DONE Make block comment width indentation sensative
    CLOSED: [2023-06-12 Mon 07:45]
    Meaning that it does not exceed a strict width limit (80 characters)
-
-** STARTED Re-format doc strings to conform to GNU standard
+** DONE Re-format doc strings to conform to GNU standard
+   CLOSED: [2023-06-21 Wed 11:45]
 
 * ;;;;;;;;;;;;;;;;;;;;;;;; Release 2 (cleanup) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

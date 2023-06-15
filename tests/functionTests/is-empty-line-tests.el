@@ -8,32 +8,32 @@
 (add-to-list 'load-path "tests")
 (require 'block-comment-test-helpers)
 
-(describe "Test is-blank-line"
+(describe "Test is-empty-line"
 
   (before-each
     (erase-buffer)
     )
 
   (it "Blank line"
-    (insert "       <p>     \n Not blank")
+    (insert "       <p>     \n Not empty")
     (jump-to-p nil t)
 
-    (expect (block-comment--is-blank-line)
+    (expect (block-comment--is-empty-line)
             :to-be
             t)
     )
 
   (it "Not blank line"
-    (insert "            \n Not blank <p>")
+    (insert "            \n Not empty <p>")
     (jump-to-p nil t)
 
-    (expect (block-comment--is-blank-line)
+    (expect (block-comment--is-empty-line)
             :to-be
             nil)
     )
 
   (it "Empty buffer"
-    (expect (block-comment--is-blank-line)
+    (expect (block-comment--is-empty-line)
             :to-be
             t)
     )

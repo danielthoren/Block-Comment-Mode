@@ -340,7 +340,7 @@ When this fails, a message is printed, telling the user that the mode has failed
           (setq inserted t)
           )
       ;; Else try to insert new comment if the current line is empty
-      (if (block-comment--is-current-line-empty)
+      (if (block-comment--is-empty-line)
           (setq inserted (block-comment--insert-block-comment))
         ;; If not empty, print error message
         (block-comment--message "Line is not empty!")
@@ -377,8 +377,8 @@ the `block-comment-mode' is started."
 
 Init variables used to keep track of line boundries:
 `block-comment-body-start-boundry'
-`block-comment-body-end-boundry'
-"
+`block-comment-body-end-boundry'"
+
   ;; Set comment body start pos
   (save-excursion
     (block-comment--jump-to-body-start)
@@ -871,7 +871,7 @@ Notes:
          )
 
     ;; Only try to detect if the line is not blank
-    (unless (block-comment--is-blank-line)
+    (unless (block-comment--is-empty-line)
 
       ;; Find postfix
       (save-excursion
@@ -1989,10 +1989,10 @@ Parameters:
   )
 
 (defun block-comment--move-line (count)
-"Moves point COUNT lines up/down, keeping the column position
+"Moves `point' COUNT lines up/down, keeping the column position
 
 Parameters:
-  COUNT: The number of lines to move point."
+  COUNT: The number of lines to move `point'."
   (let (
         (column (current-column))
         )
@@ -2002,7 +2002,7 @@ Parameters:
   )
 
 (defun block-comment--has-comment ()
-  "Checks if the block-comment-body at point contains a user comment.
+  "Checks if the block-comment-body at `point' contains a user comment.
 
 -> Return: t if it does, else nil."
   (let (
@@ -2104,11 +2104,13 @@ Parameters:
   )
 
 (defun block-comment--get-comment-width ()
-  """  Returns the width of the block comment line at point, meaning the        """
-  """  entire width of the block comment, from first char of prefix, to last   """
-  """  char of postfix. This function works on both a comment line, and         """
-  """  a pre/post amble line                                                    """
+  "Get the width of the entire block comment line at `point'.
 
+Get the width of the entire comment line, meaning the entire
+width from first char of prefix, to last char of postfix. This
+function works on both a comment line, and a pre/post amble line
+
+-> Return: The width of the current comment line."
   (let* (
          (comment-start 0)
          (comment-end 0)
@@ -2124,13 +2126,18 @@ Parameters:
   )
 
 (defun block-comment--get-body-width (&optional prefix postfix)
-  """  Returns the width of the block comment body at point, meaning the       """
-  """  width between the pre/post fix                                          """
-  """  Param 'prefix' : The prefix to look for                                 """
-  """                   Default: block-comment-prefix                          """
-  """  Param 'postfix' : The postfix to look for                               """
-  """                    Default: block-comment-postfix                        """
+"Returns the width of the block comment body at `point'.
 
+The width is defined as the distance between the start & end of
+the user text retion.
+
+Parameters:
+  PREFIX : The prefix to look for.
+           Default: `block-comment-prefix'
+  POSTFIX: The postfix to look for.
+           Default: `block-comment-postfix'
+
+-> Return: The width of the block comment body."
   (unless prefix (setq prefix block-comment-prefix))
   (unless postfix (setq postfix block-comment-postfix))
 
@@ -2150,7 +2157,9 @@ Parameters:
   )
 
 (defun block-comment--get-comment-text-width ()
-  """  Gets the width of the actual text within the block comment              """
+  "Get the width of the user text within the block comment.
+
+-> Return: The width of the user text."
   (let (
         (text-start 0)
         (text-end 0)
@@ -2172,8 +2181,10 @@ Parameters:
   )
 
 (defun block-comment--get-line-prefix-postfix ()
-  """  Gets the prefix & postfix based on the line type at point.             """
-  """  Ret: The (prefix, postfix) of the line type at point as a cons-cell    """
+  "Get the saved prefix & postfix for the line type at `point'.
+
+-> Return: The (prefix, postfix) of the line type at `point'
+                            as a cons-cell."
   (let (
         (prefix nil)
         (postfix nil)
@@ -2201,14 +2212,23 @@ Parameters:
   )
 
 (defun block-comment--get-line-prefix ()
+  "Get the saved prefix for the line type at `point'.
+
+-> Return: The prefix of the line type at `point'."
   (car (block-comment--get-line-prefix-postfix))
   )
 
 (defun block-comment--get-line-postfix ()
+  "Get the saved postfix for the line type at `point'.
+
+-> Return: The postfix of the line type at `point'."
   (cdr (block-comment--get-line-prefix-postfix))
   )
 
 (defun block-comment--get-column-from-marker (marker)
+  "Get column from  the given MARKER.
+
+-> Return: The column of the marker."
   (if (markerp marker)
     (save-excursion
       (goto-char marker)
@@ -2220,7 +2240,7 @@ Parameters:
   )
 
 (defun block-comment--get-text-boundry ()
-  "Gets the start & end position (column) of the text on the current line.
+  "Get the start & end position (column) of the text on the line at `point'.
 
 Return: Cons cell containing the start & end column positions"
   (let (
@@ -2248,33 +2268,32 @@ Return: Cons cell containing the start & end column positions"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--is-at-buffer-top ()
-  """  Checks if point is at the first line in the current buffer            """
-  """  -> Return: t if current pos is at the first line, else nil            """
+  "Check if `point' is at the first line in the current buffer.
+
+-> Return: t if current pos is at the first line, else nil."
   (equal (line-number-at-pos) 1)
   )
 
 (defun block-comment--is-at-buffer-bot (&optional lines-in-buffer)
-  """  Checks if point is at the last line in the current buffer             """
-  """  Param 'lines-in-buffer' : The number of lines in the current buffer.  """
-  """                            Can be sent as a parameter to minimize the  """
-  """                            the number of times this value needs to be  """
-  """                            calculated.                                 """
-  """  -> Return: t if current pos is at the last line, else nil             """
+  "Check if `point' is at the last line in the current buffer.
+
+Params:
+  LINES-IN-BUFFER : The number of lines in the current buffer. Can be sent to
+                    minimize the the number of times line count need to be
+                    calculated when called in a loop.
+-> Return: t if `point' is at the last line, else nil."
   (unless lines-in-buffer (setq lines-in-buffer (block-comment--get-line-count-in-buffer)))
   (equal (line-number-at-pos) lines-in-buffer)
   )
 
-(defun block-comment--is-current-line-empty ()
-  """ Checks if current line contains any non ' ' characters                 """
-  (save-excursion
-    (beginning-of-line)
-    (looking-at-p "[[:blank:]]*$")))
+(defun block-comment--is-empty-line (&optional pos)
+  "Check if the line at POS is empty, only containing ' ' characters.
 
-(defun block-comment--is-blank-line (&optional pos)
-  """  Checks if line at pos/point is emtpy, returns t if so, else nil        """
-  """  Param 'pos' : The marker position to check                             """
-  """                default: (point)                                         """
-  """  -> Return: t if line is blank, else nil                                """
+Parameters:
+  POS: The position at which to check if the line is empty.
+       Default: `point'.
+
+-> Return: t if line is empty, else nil"
   (save-excursion
     (goto-char (or pos (point)))
     (beginning-of-line)
@@ -2283,14 +2302,16 @@ Return: Cons cell containing the start & end column positions"
   )
 
 (defun block-comment--is-enclose-top (&optional inside-body)
-  """  Checks if the current line follows the format of a block comment        """
-  """  top enclose                                                            """
-  """  Param 'inside': specifies if point is required to be inside of the     """
-  """                body or not:                                             """
-  """                t   -> Point must be inside the body                     """
-  """                nil -> Point must be on the same line as body             """
-  """                Default: nil                                             """
+  "Check if line at `point' follows the top enclose format.
 
+Uses the globally stored parameters for prefix, fill and postfix
+parameters.
+
+Parameters:
+  INSIDE-BODY: t if point is required to be inside of the body.
+               Default: nil.
+
+-> Return: t if line looks like top enclose, else nil."
   (let (
         (match-signature nil)
         (has-body-beneath nil)
@@ -2310,13 +2331,16 @@ Return: Cons cell containing the start & end column positions"
   )
 
 (defun block-comment--is-enclose-bot (&optional inside-body)
-  """  Checks if the current line follows the format of a block comment        """
-  """  bottom enclose                                                         """
-  """  Param 'inside': specifies if point is required to be inside of the     """
-  """                body or not:                                             """
-  """                t   -> Point must be inside the body                     """
-  """                nil -> Point must be on the same line as body             """
-  """                Default: nil                                             """
+  "Check if line at `point' follows the bot enclose format.
+
+Uses the globally stored parameters for prefix, fill and postfix
+parameters.
+
+Parameters:
+  INSIDE-BODY: t if point is required to be inside of the body.
+               Default: nil.
+
+-> Return: t if line looks like bot enclose, else nil."
   (let (
         (match-signature nil)
         (has-body-beneath nil)
@@ -2342,12 +2366,16 @@ Return: Cons cell containing the start & end column positions"
   )
 
 (defun block-comment--is-body (&optional inside-body)
-  """ Checks if the current line follows the format of a block comment body    """
-  """  Param 'inside': specifies if point is required to be inside of the     """
-  """                body or not:                                             """
-  """                t   -> Point must be inside the body                     """
-  """                nil -> Point must be on the same line as body             """
-  """                Default: nil                                             """
+  "Check if line at `point' follows the comment line format.
+
+Uses the globally stored parameters for prefix, fill and postfix
+parameters.
+
+Parameters:
+  INSIDE-BODY: t if point is required to be inside of the body.
+               Default: nil.
+
+-> Return: t if line looks like comment line, else nil."
   (unless inside-body (setq inside-body nil))
 
   (block-comment--is-comment block-comment-prefix
@@ -2356,12 +2384,16 @@ Return: Cons cell containing the start & end column positions"
                              inside-body))
 
 (defun block-comment--is-enclose (prefix fill postfix &optional inside-body)
-  """  Checks if the current line follows the format of a enclose                  """
-  """  with the given prefix, fill and postfix.                                   """
-  """  Param 'prefix' : The prefix to look for                                    """
-  """  Param 'fill' : The fill to use                                             """
-  """  Param 'postfix' : The postfix to look for                                  """
+  "Check if line at `point' follows the enclose format with the given parameters.
 
+Parameters:
+  PREFIX     : The prefix to look for.
+  FILL       : The fill to look for.
+  POSTFIX    : The postfix to look for.
+  INSIDE-BODY: t if point is required to be inside of the body.
+               Default: nil.
+
+-> Return: t if line looks like comment line, else nil."
   (let (
         (is-comment (block-comment--is-comment prefix fill postfix inside-body))
         (is-enclose nil)
@@ -2409,21 +2441,22 @@ Return: Cons cell containing the start & end column positions"
   )
 
 (defun block-comment--is-comment (prefix fill postfix &optional inside)
-  """  Checks if the current line follows the format of a block comment body    """
-  """  with the given prefix, fill and postfix.                                """
-  """  Param 'prefix' : The prefix to look for                                 """
-  """  Param 'fill' : The fill to use                                          """
-  """  Param 'postfix' : The postfix to look for                               """
-  """  Param 'inside' specifies if point is required to be inside of the       """
-  """                body or not:                                              """
-  """       t   -> Point must be inside the body                               """
-  """       nil -> Point must be on the same line as body                       """
+  "Check if line at `point' follows the comment line format with the given parameters.
+
+Parameters:
+  PREFIX     : The prefix to look for.
+  FILL       : The fill to look for.
+  POSTFIX    : The postfix to look for.
+  INSIDE-BODY: t if point is required to be inside of the body.
+               Default: nil.
+
+-> Return: t if line looks like comment line, else nil."
   (unless inside (setq inside nil))
 
   (let (
-        (read-prefix-pos nil)   ;; Position of current line:s prefix
-        (read-postfix-pos nil)  ;; Position of current line:s postfix
-        (point-in-body t)       ;; If point is inside body.
+        (read-prefix-pos nil)   ; Position of current line:s prefix
+        (read-postfix-pos nil)  ; Position of current line:s postfix
+        (point-in-body t)       ; If point is inside body.
         )
     ;; Check if prefix is present on this line
     (save-excursion
@@ -2466,12 +2499,10 @@ Return: Cons cell containing the start & end column positions"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--jump-to-previous-text-column (&optional end)
-  """  Jump to the same column as the text block in the previous block        """
-  """  comment line. If param end is set to t, then jump to same column        """
-  """  as the end of the text block in the previous line.                      """
-  """    Param 'end': If t, jump to same column as end of text block in       """
-  """                 previous line, else the start                            """
+  "Jump to the same column as the text block in the previous comment line.
 
+  If param END is set to t, then jump to same column as the end
+  of the user text on the previous line."
   (let* (
          (prev-block-start nil)
          (prev-comment-column nil)
@@ -2499,10 +2530,13 @@ Return: Cons cell containing the start & end column positions"
   )
 
 (defun block-comment--jump-to-comment-start (&optional prefix)
-  """  Jump to block comment start, the first char of the prefix               """
-  """  Param 'prefix' : The prefix to look for                                 """
-  """                   Default: block-comment-prefix                          """
-  """  Ret: The position of the comment start                                  """
+  "Jump to block comment start, the first char of the prefix.
+
+Parameters:
+  PREFIX : The prefix to look for.
+           Default: `block-comment-prefix'.
+
+-> Return: The marker position of the comment start."
 
   (unless prefix (setq prefix (block-comment--get-line-prefix)))
   (block-comment--jump-to-body-start (- 0 (string-width prefix)) prefix)
@@ -2510,13 +2544,16 @@ Return: Cons cell containing the start & end column positions"
   )
 
 (defun block-comment--jump-to-comment-end (&optional offset postfix)
-  """  Jump to block comment end, the char directly after after the postfix.    """
-  """  Param 'offset': Offset can be used to move the position from the         """
-  """                  default position                                         """
-  """                  Default: 1                                               """
-  """  Param 'postfix' : The postfix to look for                                """
-  """                    Default: block-comment-postfix                         """
-  """  Return: point-marker                                                     """
+  "Jump to block comment end, the char directly after after the postfix.
+
+Parameters:
+  OFFSET : Offsets the end position of the jump. Positive values puts `point'
+           closer to the comment body (to the left).
+           Default: 1.
+  POSTFIX: The postfix to look for.
+           Default: `block-comment-postfix'.
+
+-> Return: The marker position of the comment end."
 
   (unless offset (setq offset 1))
   (unless postfix (setq postfix (block-comment--get-line-postfix)))
@@ -2526,8 +2563,9 @@ Return: Cons cell containing the start & end column positions"
   )
 
 (defun block-comment--jump-to-body-center ()
-  """  Jumps to the center of the block comment body and returns the end      """
-  """  final column position                                                  """
+  "Jump to the center of the block comment body.
+
+-> Return: The final column position."
   (let (
         (start-point 0)
         (end-point 0)
@@ -2556,16 +2594,18 @@ Return: Cons cell containing the start & end column positions"
     )
   )
 
-;; TODO: Use var: block-comment-body-start-boundry instead of using regex
-;;       each time? Make new function that finds the boundry and use boundry
-;;       here (optimization)
 (defun block-comment--jump-to-body-start (&optional edge-offset prefix)
-  """  Jumps to the start of block comment body                               """
-  """  Param 'edge-offset': The offset from the block comment prefix          """
-  """                       Default: block-comment-edge-offset                """
-  """  Param 'prefix' : The prefix to look for                                """
-  """                   Default: block-comment-prefix                         """
-  """  Ret : The position of the body start                                   """
+  "Jump to the start of block comment body, the char after the prefix.
+
+Params:
+  EDGE-OFFSET: The offset from the block comment prefix. Positive values puts
+               `point' closer to the comment body (to the right).
+               Default: `block-comment-edge-offset'.
+  PREFIX     : The prefix to look for.
+               Default: `block-comment-prefix'.
+
+-> Return : The marker position of the body start."
+
   (unless edge-offset (setq edge-offset block-comment-edge-offset))
   (unless prefix (setq prefix (block-comment--get-line-prefix)))
 
@@ -2576,25 +2616,25 @@ Return: Cons cell containing the start & end column positions"
     (beginning-of-line)
 
     ;; Place point at end of prefix if a prefix is found
-    (if (search-forward prefix
-                        line-end
-                        t)
+    (if (search-forward prefix line-end t)
         (forward-char edge-offset)
-      (goto-char start-pos)
-      )
+      (goto-char start-pos))
     )
   (point-marker)
   )
 
 (defun block-comment--jump-to-body-end (&optional edge-offset postfix)
-  """  Jumps to the end of block comment body, meaning the inside of the        """
-  """  block comment, excluding the pre/postfix and the edge offset.            """
-  """  Param 'edge-offset': Sets a custom edge offset, meaning the distance     """
-  """                       to the postfix.                                     """
-  """                       Default: block-comment-edge-offset                  """
-  """  Param 'postfix' : The postfix to look for                                """
-  """                    Default: block-comment-postfix                         """
-  """  Ret: The position of point                                               """
+  "Jump to the end of block comment body, the char before the prefix.
+
+Params:
+  EDGE-OFFSET : The offset from the block comment postfix. Positive values puts
+                `point' closer to the comment body (to the left).
+                Default: `block-comment-edge-offset'.
+  POSTFIX     : The postfix to look for.
+                Default: `block-comment-postfix'.
+
+-> Return : The marker position of the body end."
+
   (unless edge-offset (setq edge-offset block-comment-edge-offset))
   (unless postfix (setq postfix (block-comment--get-line-postfix)))
 
@@ -2605,31 +2645,27 @@ Return: Cons cell containing the start & end column positions"
     (end-of-line)
 
     ;; Place point at start of postfix if a postfix is found
-    (if (search-backward postfix
-                         line-start
-                         t)
+    (if (search-backward postfix line-start t)
         (backward-char (+ edge-offset 1))
-      (goto-char start-pos)
-      )
+      (goto-char start-pos))
     )
   (point-marker)
   )
 
 (defun block-comment--jump-to-first-char-in-body (&optional offset)
-  """   Jumps to the first char in the comment body text                       """
-  """   Beginning means the first non-fill character in the body               """
-  """   Param: 'offset': The offset can be used to change where to jump:       """
-  """                    +x -> Jump closer to postfix                          """
-  """                    -x -> Jump closer to prefix                           """
-  """   Ret: the number of fill characters remaining on the left side          """
+  "Jump to the first char in the user text.
 
-  (unless offset
-    (setq offset 0)
-    )
+Params:
+  OFFSET : Offsets the end position of the jump.
+           Positive values offsets `point' to the right.
+           Default: 0.
+
+-> Return : The number of fill characters on the left side of user text."
+  (unless offset (setq offset 0))
 
   (let (
-        (body-start-pos nil)   ;; Start of block-comment body
-        (comment-start-pos nil);; Start of user comment
+        (body-start-pos nil)    ; Start of block-comment body
+        (comment-start-pos nil) ; Start of user comment
         )
 
     (beginning-of-line)
@@ -2653,18 +2689,19 @@ Return: Cons cell containing the start & end column positions"
   )
 
 (defun block-comment--jump-to-last-char-in-body (&optional offset)
-  """  jumps to end of comment in body at point End means the place right     """
-  """  after the last non-fill character in the body                          """
-  """  Param: 'offset': Jumps to last char in body + this offset. Default = 1 """
-  """  Ret: the number of fill characters remaining on the right side         """
+  "Jump to the last char in the user text.
+
+Params:
+  OFFSET : Offsets the end position of the jump.
+           Positive values offsets `point' to the left.
+           Default: 1.
+
+-> Return : The number of fill characters on the right side of user text."
   (let (
-        (body-end-pos nil)   ;; End of block-comment body
-        (comment-end-pos nil);; End of user comment
+        (body-end-pos nil)    ; End of block-comment body
+        (comment-end-pos nil) ; End of user comment
         )
-    ;; Set default value
-    (unless offset
-      (setq offset 1)
-      )
+    (unless offset (setq offset 1))
 
     (end-of-line)
     ;; Find end position in block comment
@@ -2689,15 +2726,18 @@ Return: Cons cell containing the start & end column positions"
   )
 
 (defun block-comment--jump-to-last-comment-line (&optional offset stop-before-postfix)
-  """  Moves point down to last block comment line.                           """
-  """  Param 'offset': The offset can be used to tweak the relative          """
-  """                  position that point ends on:                          """
-  """                      +x -> Move point x lines further down             """
-  """                      -x -> Move point x lines further up               """
-  """                  Default: 0                                            """
-  """  Param 'stop-before-postfix': if t, stop on last block comment line     """
-  """                               (before postfix)                         """
-  """                   Default: nil                                         """
+  "Jump to last block comment line.
+
+Function moves down until the line no longer follows the block
+comment format. Then it stops and moves up one line, thus
+stopping at the last line of the block comment.
+
+Parameters:
+  OFFSET             : Offsets the end position of the jump. Positive values puts `point'
+                       furhter down, negative further up.
+                       Default: 1.
+  STOP-BEFORE-POSTFIX: If t, stop on last block comment line.
+                       Default: nil."
   (unless offset (setq offset 0))
 
   (let (
@@ -2727,10 +2767,7 @@ Return: Cons cell containing the start & end column positions"
       )
 
     ;; Move back up to last comment line if necessary
-    (unless at-bottom
-      (forward-line -1)
-      )
-
+    (unless at-bottom (forward-line -1))
     )
 
   ;; Move according to offset
@@ -2742,17 +2779,25 @@ Return: Cons cell containing the start & end column positions"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun block-comment--unit-tests-running ()
+  "Check if the current context is running in the unit tests
+
+-> Return: t if running unit tests, else nil"
   (and (boundp 'block-comment--unit-tests)
        block-comment--unit-tests)
   )
 
 (defun block-comment--message (messageStr)
+  "When not in unit tests, forward message to normal `message' function."
   (when (not (block-comment--unit-tests-running))
     (message messageStr)
     )
   )
 
 (defun block-comment--error (errMsg &optional errEcho)
+  "Print error with special formatting when not in unit tests.
+
+Prints error messages in red with 'Error: ' prefix. Does not
+print when in unit tests."
   (when (not (block-comment--unit-tests-running))
 
     (unless errEcho (setq errEcho errMsg))
