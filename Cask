@@ -3,6 +3,8 @@
 
 (package-file "block-comment-mode.el")
 
+(files "src/*")
+
 ;; Project Dependencies
 ;;(depends-on "dash")
 
