@@ -19,7 +19,17 @@
 
 * ;;;;;;;;;;;;;;;;;;;;;;;; Release 2 (cleanup) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-** TODO Split mode into multiple files
+** STARTED Split mode into multiple files
+
+*** DONE Split the code into multiple files
+CLOSED: [2024-03-13 Wed 14:13]
+
+*** TODO Adhere to the multi-file package conventions
+    Described in:
+    https://www.gnu.org/software/emacs/manual/html_node/elisp/Multi_002dfile-Packages.html#Multi_002dfile-Packages
+
+*** TODO Fix Cask build system for multi-file package 'cask pkg-file'
+    https://cask.readthedocs.io/en/latest/guide/usage.html#cask-load-path
 
 ** TODO Investigate why function 'block-comment--is-comment' is called so many times
    when moving between rows in the block comment
